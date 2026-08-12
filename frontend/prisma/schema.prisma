@@ -1,0 +1,80 @@
+// Next.js Full Stack Prisma Schema
+// Defaults to SQLite file-based DB for instant local development.
+// To use PostgreSQL / Supabase / Neon:
+// 1. Change provider to "postgresql"
+// 2. Set DATABASE_URL in .env.local to your PostgreSQL connection string
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id            String            @id @default(uuid())
+  companyName   String
+  crNumber      String?           // Commercial Registration (CR) Number
+  crExpiry      DateTime?         // CR Expiry Date
+  crPhoto       String?           // Cloudinary URL string for CR document photo
+  licenseNumber String?           // Trade License Number
+  licenseExpiry DateTime?         // Trade License Expiry Date
+  licensePhoto  String?           // Cloudinary URL string for License document photo
+  ownerName     String?           @default("")
+  phone         String?           @default("")
+  email         String?           @default("")
+  notes         String?
+  status        String            @default("Active") // "Active", "Inactive"
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  employees     Employee[]
+  documents     CompanyDocument[]
+}
+
+model Employee {
+  id                  String    @id @default(uuid())
+  employeeName        String
+  companyId           String
+  company             Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  phone               String?   // Local / Qatar Contact Phone Number
+  nativeRelativePhone String?   // Native country relative / emergency contact number
+  qidNumber           String    @unique // Qatar ID Number
+  qidExpiry           DateTime  // Qatar ID Expiry Date
+  qidPhoto            String?   // Cloudinary / upload URL for Qatar ID photo
+  passportNumber      String?   // Passport Number
+  passportExpiry      DateTime? // Passport Expiry Date
+  passportPhoto       String?   // Cloudinary / upload URL for Passport photo
+  employeeCode        String?   // Optional legacy employee code
+  notes               String?
+  status              String    @default("Active") // "Active", "Terminated", "On Leave"
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
+
+model CompanyDocument {
+  id             String           @id @default(uuid())
+  companyId      String
+  company        Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  documentType   String           // e.g. "Trade License", "Establishment Card", "Tax Card", "Computer Card"
+  documentNumber String
+  expiryDate     DateTime
+  attachment     String?          // File URL / Cloudinary URL path
+  notes          String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  renewals       RenewalHistory[]
+}
+
+model RenewalHistory {
+  id                 String          @id @default(uuid())
+  documentId         String
+  document           CompanyDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  previousExpiryDate DateTime
+  newExpiryDate      DateTime
+  status             String          @default("COMPLETED") // "PENDING", "COMPLETED", "CANCELLED"
+  notes              String?
+  renewedAt          DateTime        @default(now())
+  renewedBy          String?
+}

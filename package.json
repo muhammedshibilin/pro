@@ -1,0 +1,16 @@
+{
+  "name": "pro-management-fullstack",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Next.js Full-Stack Document & Expiry Management System",
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "start": "npm --prefix frontend run start",
+    "lint": "npm --prefix frontend run lint",
+    "db:push": "npm --prefix frontend run db:push",
+    "db:seed": "npm --prefix frontend run db:seed",
+    "db:studio": "npm --prefix frontend run db:studio",
+    "db:generate": "npm --prefix frontend run db:generate"
+  }
+}
