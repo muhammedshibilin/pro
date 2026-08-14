@@ -62,7 +62,7 @@ export class BrowserPushProvider implements IFrontendNotificationProvider {
 export class EmailTriggerProvider implements IFrontendNotificationProvider {
   readonly channelName = 'email';
   isAvailable(): boolean { return false; /* Not yet implemented */ }
-  async send(_payload: FrontendNotificationPayload): Promise<void> {
+  async send(): Promise<void> {
     console.warn('[EmailTriggerProvider] Not implemented. Wire POST /api/notifications/email.');
   }
 }
@@ -73,7 +73,7 @@ export class EmailTriggerProvider implements IFrontendNotificationProvider {
 export class WhatsAppTriggerProvider implements IFrontendNotificationProvider {
   readonly channelName = 'whatsapp';
   isAvailable(): boolean { return false; }
-  async send(_payload: FrontendNotificationPayload): Promise<void> {
+  async send(): Promise<void> {
     console.warn('[WhatsAppTriggerProvider] Not implemented. Wire POST /api/notifications/whatsapp.');
   }
 }
@@ -84,7 +84,7 @@ export class WhatsAppTriggerProvider implements IFrontendNotificationProvider {
 export class SmsTriggerProvider implements IFrontendNotificationProvider {
   readonly channelName = 'sms';
   isAvailable(): boolean { return false; }
-  async send(_payload: FrontendNotificationPayload): Promise<void> {
+  async send(): Promise<void> {
     console.warn('[SmsTriggerProvider] Not implemented. Wire POST /api/notifications/sms.');
   }
 }

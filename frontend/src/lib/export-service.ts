@@ -42,7 +42,7 @@ class ExportServiceImpl implements IFrontendExportService {
    * XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
    * XLSX.writeFile(wb, filename + '.xlsx');
    */
-  async exportToExcel<T extends object>(_data: T[], _filename: string): Promise<void> {
+  async exportToExcel(): Promise<void> {
     throw new NotImplementedError(
       'Excel export not implemented. Install xlsx and implement ExportService.exportToExcel.',
     );
@@ -56,13 +56,13 @@ class ExportServiceImpl implements IFrontendExportService {
    *
    * Or call the backend: GET /api/export/employees/pdf (server-side Puppeteer)
    */
-  async exportToPdf<T extends object>(_data: T[], _filename: string, _title: string): Promise<void> {
+  async exportToPdf(): Promise<void> {
     throw new NotImplementedError(
       'PDF export not implemented. Install jspdf or use server-side /api/export endpoint.',
     );
   }
 
-  async exportToCsv<T extends object>(_data: T[], _filename: string): Promise<void> {
+  async exportToCsv(): Promise<void> {
     throw new NotImplementedError('CSV export not implemented.');
   }
 

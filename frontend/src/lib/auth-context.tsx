@@ -52,8 +52,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const login = useCallback(async (_email: string, _password: string) => {
-    // @future: POST /api/auth/login, store token, decode user
+  const login = useCallback(async () => {
+    // @future: POST /api/auth/login with { email, password }, store token, decode user
     setUser(STUB_ADMIN_USER);
   }, []);
 
