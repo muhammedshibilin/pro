@@ -14,7 +14,7 @@ export default function MobileBottomNav({ activeView, onViewChange, alertCount }
   const tabs = [
     { id: 'dashboard' as AppView, label: 'Overview', icon: LayoutDashboard },
     { id: 'companies' as AppView, label: 'Companies', icon: Building2 },
-    { id: 'employees' as AppView, label: 'Personnel', icon: Users },
+    { id: 'employees' as AppView, label: 'Employees', icon: Users },
     { id: 'alerts' as AppView, label: 'Alerts', icon: Bell },
     { id: 'settings' as AppView, label: 'Settings', icon: Settings },
   ];

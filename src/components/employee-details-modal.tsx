@@ -9,8 +9,11 @@ import {
   DialogTitle,
 } from './ui/dialog';
 import { formatDate, getDaysRemaining } from '@/lib/utils';
-import { Building, BadgeInfo, Phone, Globe, CreditCard, BookOpen, Eye, X, Cloud } from 'lucide-react';
+import { Building, BadgeInfo, Phone, Globe, CreditCard, BookOpen, Eye, X, Cloud, Edit3, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
+import { EmployeeFormModal } from './employee-form-modal';
+import { DeleteConfirmModal } from './delete-confirm-modal';
+import { useDeleteEmployee } from '@/hooks/use-employees';
 
 interface EmployeeDetailsModalProps {
   employee?: Employee;
@@ -20,8 +23,17 @@ interface EmployeeDetailsModalProps {
 
 export function EmployeeDetailsModal({ employee, open, onOpenChange }: EmployeeDetailsModalProps) {
   const [viewingPhoto, setViewingPhoto] = useState<{ url: string; title: string } | null>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const deleteMutation = useDeleteEmployee();
 
   if (!employee) return null;
+
+  const handleDelete = async () => {
+    await deleteMutation.mutateAsync(employee.id);
+    setIsDeleteOpen(false);
+    onOpenChange(false);
+  };
 
   const qidDays = getDaysRemaining(employee.qidExpiry);
   const passportDays = employee.passportExpiry ? getDaysRemaining(employee.passportExpiry) : null;
@@ -195,6 +207,40 @@ export function EmployeeDetailsModal({ employee, open, onOpenChange }: EmployeeD
               <p className="text-muted-foreground italic">No sponsor company linked.</p>
             )}
           </div>
+          {/* Action Buttons */}
+          <div className="pt-2 flex items-center justify-between gap-3 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-rose-600 hover:bg-rose-500/10 text-xs gap-1.5"
+              onClick={() => setIsDeleteOpen(true)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete Personnel
+            </Button>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                onClick={() => onOpenChange(false)}
+              >
+                Close
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="bg-primary text-primary-foreground text-xs gap-1.5 font-bold"
+                onClick={() => setIsEditOpen(true)}
+              >
+                <Edit3 className="h-3.5 w-3.5" />
+                Edit Profile
+              </Button>
+            </div>
+          </div>
         </div>
 
         {/* Full Image Preview Modal */}
@@ -231,6 +277,24 @@ export function EmployeeDetailsModal({ employee, open, onOpenChange }: EmployeeD
             </div>
           </div>
         )}
+
+        <EmployeeFormModal
+          employee={employee}
+          open={isEditOpen}
+          onOpenChange={(open) => {
+            setIsEditOpen(open);
+            if (!open) onOpenChange(false);
+          }}
+        />
+
+        <DeleteConfirmModal
+          open={isDeleteOpen}
+          onOpenChange={setIsDeleteOpen}
+          title="Delete Personnel Record"
+          description={`Are you sure you want to permanently delete "${employee.employeeName}" (QID: ${employee.qidNumber})? This action cannot be undone.`}
+          isLoading={deleteMutation.isPending}
+          onConfirm={handleDelete}
+        />
       </DialogContent>
     </Dialog>
   );
