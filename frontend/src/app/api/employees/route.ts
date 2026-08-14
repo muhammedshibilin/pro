@@ -65,9 +65,58 @@ export async function POST(req: NextRequest) {
       employeeCode,
     } = body;
 
-    if (!employeeName || !companyId || !qidNumber || !qidExpiry) {
+    const name = typeof employeeName === 'string' ? employeeName.trim() : '';
+    const qid = typeof qidNumber === 'string' ? qidNumber.trim() : '';
+
+    if (!name || name.length < 2) {
       return NextResponse.json(
-        { statusCode: 400, message: 'employeeName, companyId, qidNumber, and qidExpiry are required' },
+        { statusCode: 400, message: 'Personnel name is required (minimum 2 characters)' },
+        { status: 400 }
+      );
+    }
+
+    if (!companyId) {
+      return NextResponse.json(
+        { statusCode: 400, message: 'A sponsoring company is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!qid || qid.length < 5) {
+      return NextResponse.json(
+        { statusCode: 400, message: 'Qatar ID (QID) must be at least 5 digits' },
+        { status: 400 }
+      );
+    }
+
+    const parsedQidExpiry = new Date(qidExpiry);
+    if (isNaN(parsedQidExpiry.getTime())) {
+      return NextResponse.json(
+        { statusCode: 400, message: 'A valid QID expiry date is required' },
+        { status: 400 }
+      );
+    }
+
+    let parsedPassportExpiry: Date | null = null;
+    if (passportExpiry) {
+      const d = new Date(passportExpiry);
+      if (isNaN(d.getTime())) {
+        return NextResponse.json(
+          { statusCode: 400, message: 'Invalid Passport expiry date' },
+          { status: 400 }
+        );
+      }
+      parsedPassportExpiry = d;
+    }
+
+    // Verify company exists
+    const companyExists = await prisma.company.findUnique({
+      where: { id: companyId },
+    });
+
+    if (!companyExists) {
+      return NextResponse.json(
+        { statusCode: 400, message: 'Selected company does not exist' },
         { status: 400 }
       );
     }
@@ -76,18 +125,18 @@ export async function POST(req: NextRequest) {
 
     const employee = await prisma.employee.create({
       data: {
-        employeeName,
+        employeeName: name,
         companyId,
-        phone: phone || '',
-        nativeRelativePhone: nativeRelativePhone || '',
-        qidNumber,
-        qidExpiry: new Date(qidExpiry),
-        qidPhoto: qidPhoto || null,
-        passportNumber: passportNumber || null,
-        passportExpiry: passportExpiry ? new Date(passportExpiry) : null,
-        passportPhoto: passportPhoto || null,
+        phone: phone ? String(phone).trim() : '',
+        nativeRelativePhone: nativeRelativePhone ? String(nativeRelativePhone).trim() : '',
+        qidNumber: qid,
+        qidExpiry: parsedQidExpiry,
+        qidPhoto: qidPhoto ? String(qidPhoto).trim() : null,
+        passportNumber: passportNumber ? String(passportNumber).trim() : null,
+        passportExpiry: parsedPassportExpiry,
+        passportPhoto: passportPhoto ? String(passportPhoto).trim() : null,
         employeeCode: code,
-        notes: notes || null,
+        notes: notes ? String(notes).trim() : null,
         status: status || 'Active',
       },
       include: {

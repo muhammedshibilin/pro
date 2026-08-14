@@ -21,14 +21,21 @@ import { FilePlus } from 'lucide-react';
 import { DocumentUpload } from './document-upload';
 
 const documentSchema = z.object({
-  companyId: z.string().min(1, 'Company is required'),
+  companyId: z.string().min(1, 'Please select a company to assign this document'),
   documentType: z.string().min(1, 'Document type is required'),
-  documentNumber: z.string().min(2, 'Document number is required'),
-  expiryDate: z.string().refine((val) => !isNaN(Date.parse(val)), {
-    message: 'Invalid expiry date',
-  }),
-  attachment: z.string().optional(),
-  notes: z.string().optional(),
+  documentNumber: z
+    .string()
+    .trim()
+    .min(2, 'Document number must be at least 2 characters')
+    .max(80, 'Document number cannot exceed 80 characters'),
+  expiryDate: z
+    .string()
+    .min(1, 'Expiry date is required')
+    .refine((val) => !isNaN(Date.parse(val)), {
+      message: 'Please select a valid expiry date',
+    }),
+  attachment: z.string().optional().or(z.literal('')),
+  notes: z.string().max(500).optional().or(z.literal('')),
 });
 
 type DocumentFormValues = z.infer<typeof documentSchema>;

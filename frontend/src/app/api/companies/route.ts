@@ -50,26 +50,45 @@ export async function POST(req: NextRequest) {
       status,
     } = body;
 
-    if (!companyName) {
+    const name = typeof companyName === 'string' ? companyName.trim() : '';
+    if (!name || name.length < 2) {
       return NextResponse.json(
-        { statusCode: 400, message: 'Company Name is required' },
+        { statusCode: 400, message: 'Company Name is required (minimum 2 characters)' },
         { status: 400 }
       );
     }
 
+    let parsedCrExpiry: Date | null = null;
+    if (crExpiry) {
+      const d = new Date(crExpiry);
+      if (isNaN(d.getTime())) {
+        return NextResponse.json({ statusCode: 400, message: 'Invalid CR Expiry date' }, { status: 400 });
+      }
+      parsedCrExpiry = d;
+    }
+
+    let parsedLicenseExpiry: Date | null = null;
+    if (licenseExpiry) {
+      const d = new Date(licenseExpiry);
+      if (isNaN(d.getTime())) {
+        return NextResponse.json({ statusCode: 400, message: 'Invalid License Expiry date' }, { status: 400 });
+      }
+      parsedLicenseExpiry = d;
+    }
+
     const company = await prisma.company.create({
       data: {
-        companyName,
-        crNumber: crNumber || null,
-        crExpiry: crExpiry ? new Date(crExpiry) : null,
-        crPhoto: crPhoto || null,
-        licenseNumber: licenseNumber || null,
-        licenseExpiry: licenseExpiry ? new Date(licenseExpiry) : null,
-        licensePhoto: licensePhoto || null,
-        ownerName: ownerName || '',
-        phone: phone || '',
-        email: email || '',
-        notes: notes || null,
+        companyName: name,
+        crNumber: crNumber ? String(crNumber).trim() : null,
+        crExpiry: parsedCrExpiry,
+        crPhoto: crPhoto ? String(crPhoto).trim() : null,
+        licenseNumber: licenseNumber ? String(licenseNumber).trim() : null,
+        licenseExpiry: parsedLicenseExpiry,
+        licensePhoto: licensePhoto ? String(licensePhoto).trim() : null,
+        ownerName: ownerName ? String(ownerName).trim() : '',
+        phone: phone ? String(phone).trim() : '',
+        email: email ? String(email).trim() : '',
+        notes: notes ? String(notes).trim() : null,
         status: status || 'Active',
       },
       include: {

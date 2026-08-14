@@ -21,17 +21,27 @@ import { UserPlus, UserCheck, Phone, Globe, CreditCard, BookOpen } from 'lucide-
 import { CloudinaryPhotoUpload } from './cloudinary-photo-upload';
 
 const employeeSchema = z.object({
-  employeeName: z.string().min(2, 'Full name is required'),
-  companyId: z.string().min(1, 'Sponsor company is required'),
-  phone: z.string().optional().or(z.literal('')),
-  nativeRelativePhone: z.string().optional().or(z.literal('')),
-  qidNumber: z.string().min(5, 'QID number must be at least 5 digits'),
-  qidExpiry: z.string().min(1, 'QID expiry date is required'),
+  employeeName: z
+    .string()
+    .trim()
+    .min(2, 'Personnel full name is required (min 2 characters)')
+    .max(100, 'Name cannot exceed 100 characters'),
+  companyId: z.string().min(1, 'Please select a sponsoring company'),
+  phone: z.string().trim().max(40).optional().or(z.literal('')),
+  nativeRelativePhone: z.string().trim().max(80).optional().or(z.literal('')),
+  qidNumber: z
+    .string()
+    .trim()
+    .min(5, 'Qatar ID (QID) must be at least 5 digits')
+    .max(30, 'QID cannot exceed 30 characters'),
+  qidExpiry: z.string().min(1, 'QID expiry date is required').refine((val) => !isNaN(Date.parse(val)), {
+    message: 'Please provide a valid QID expiry date',
+  }),
   qidPhoto: z.string().optional().or(z.literal('')),
-  passportNumber: z.string().optional().or(z.literal('')),
+  passportNumber: z.string().trim().max(40).optional().or(z.literal('')),
   passportExpiry: z.string().optional().or(z.literal('')),
   passportPhoto: z.string().optional().or(z.literal('')),
-  notes: z.string().optional().or(z.literal('')),
+  notes: z.string().max(500).optional().or(z.literal('')),
   status: z.string().min(1, 'Status is required'),
 });
 

@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import axios from 'axios';
-import { Upload, X, Image as ImageIcon, CheckCircle2, AlertCircle, Cloud, Eye } from 'lucide-react';
+import { Upload, X, Image as ImageIcon, CheckCircle2, AlertCircle, Cloud, Eye, FileText } from 'lucide-react';
 import { Button } from './ui/button';
 
 interface CloudinaryPhotoUploadProps {
@@ -170,13 +170,21 @@ export function CloudinaryPhotoUpload({
                 </div>
               </div>
             ) : (
-              <div className="h-11 w-11 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
-                <ImageIcon className="h-5 w-5" />
-              </div>
+              <a
+                href={value}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="h-11 w-11 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 shrink-0 hover:bg-emerald-500/20 transition-colors"
+                title="Click to view PDF document"
+              >
+                <FileText className="h-5 w-5" />
+              </a>
             )}
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="font-semibold text-foreground text-xs truncate">Document Photo</span>
+                <span className="font-semibold text-foreground text-xs truncate">
+                  {value.toLowerCase().includes('.pdf') ? 'PDF Document' : 'Document File'}
+                </span>
                 {(value.includes('cloudinary') || isCloudinary) && (
                   <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-mono bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">
                     <Cloud className="h-2.5 w-2.5" />

@@ -20,17 +20,26 @@ import { Building2, FileCheck, ShieldCheck, User } from 'lucide-react';
 import { CloudinaryPhotoUpload } from './cloudinary-photo-upload';
 
 const companySchema = z.object({
-  companyName: z.string().min(2, 'Company name is required'),
-  crNumber: z.string().optional().or(z.literal('')),
+  companyName: z
+    .string()
+    .trim()
+    .min(2, 'Company name must be at least 2 characters')
+    .max(120, 'Company name cannot exceed 120 characters'),
+  crNumber: z.string().trim().max(60).optional().or(z.literal('')),
   crExpiry: z.string().optional().or(z.literal('')),
   crPhoto: z.string().optional().or(z.literal('')),
-  licenseNumber: z.string().optional().or(z.literal('')),
+  licenseNumber: z.string().trim().max(60).optional().or(z.literal('')),
   licenseExpiry: z.string().optional().or(z.literal('')),
   licensePhoto: z.string().optional().or(z.literal('')),
-  ownerName: z.string().optional().or(z.literal('')),
-  phone: z.string().optional().or(z.literal('')),
-  email: z.string().optional().or(z.literal('')),
-  notes: z.string().optional().or(z.literal('')),
+  ownerName: z.string().trim().max(100).optional().or(z.literal('')),
+  phone: z.string().trim().max(50).optional().or(z.literal('')),
+  email: z
+    .string()
+    .trim()
+    .email('Please enter a valid email address')
+    .optional()
+    .or(z.literal('')),
+  notes: z.string().max(500).optional().or(z.literal('')),
   status: z.string().min(1, 'Status is required'),
 });
 
@@ -281,6 +290,7 @@ export function CompanyFormModal({ company, open, onOpenChange }: CompanyFormMod
               <div className="space-y-1">
                 <label className="text-[11px] font-semibold text-muted-foreground">Email Address</label>
                 <Input type="email" placeholder="contact@cyberdyne.com" {...register('email')} className="bg-background text-xs" />
+                {errors.email && <p className="text-[10px] text-destructive">{errors.email.message}</p>}
               </div>
             </div>
 

@@ -56,10 +56,46 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { companyId, documentType, documentNumber, expiryDate, attachment, notes } = body;
+    const docNum = typeof documentNumber === 'string' ? documentNumber.trim() : '';
+    const docType = typeof documentType === 'string' ? documentType.trim() : '';
 
-    if (!companyId || !documentType || !documentNumber || !expiryDate) {
+    if (!companyId) {
       return NextResponse.json(
-        { statusCode: 400, message: 'companyId, documentType, documentNumber, and expiryDate are required' },
+        { statusCode: 400, message: 'Please select a valid company' },
+        { status: 400 }
+      );
+    }
+
+    if (!docType) {
+      return NextResponse.json(
+        { statusCode: 400, message: 'Document type is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!docNum || docNum.length < 2) {
+      return NextResponse.json(
+        { statusCode: 400, message: 'Document number is required (minimum 2 characters)' },
+        { status: 400 }
+      );
+    }
+
+    const parsedExpiry = new Date(expiryDate);
+    if (isNaN(parsedExpiry.getTime())) {
+      return NextResponse.json(
+        { statusCode: 400, message: 'A valid document expiry date is required' },
+        { status: 400 }
+      );
+    }
+
+    // Verify company exists
+    const companyExists = await prisma.company.findUnique({
+      where: { id: companyId },
+    });
+
+    if (!companyExists) {
+      return NextResponse.json(
+        { statusCode: 400, message: 'Selected company does not exist' },
         { status: 400 }
       );
     }
@@ -67,11 +103,11 @@ export async function POST(req: NextRequest) {
     const doc = await prisma.companyDocument.create({
       data: {
         companyId,
-        documentType,
-        documentNumber,
-        expiryDate: new Date(expiryDate),
-        attachment: attachment || null,
-        notes: notes || null,
+        documentType: docType,
+        documentNumber: docNum,
+        expiryDate: parsedExpiry,
+        attachment: attachment ? String(attachment).trim() : null,
+        notes: notes ? String(notes).trim() : null,
       },
       include: {
         company: true,
