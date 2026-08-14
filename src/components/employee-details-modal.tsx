@@ -9,11 +9,13 @@ import {
   DialogTitle,
 } from './ui/dialog';
 import { formatDate, getDaysRemaining } from '@/lib/utils';
-import { Building, BadgeInfo, Phone, Globe, CreditCard, BookOpen, Eye, X, Cloud, Edit3, Trash2 } from 'lucide-react';
+import { calculateEmployeeQidStatus, EMPLOYEE_STATUS_META } from '@/lib/status-calculator';
+import { Building, BadgeInfo, Phone, Globe, CreditCard, BookOpen, Eye, Edit3, Trash2, Briefcase } from 'lucide-react';
 import { Button } from './ui/button';
 import { EmployeeFormModal } from './employee-form-modal';
 import { DeleteConfirmModal } from './delete-confirm-modal';
 import { useDeleteEmployee } from '@/hooks/use-employees';
+import { cn } from '@/lib/utils';
 
 interface EmployeeDetailsModalProps {
   employee?: Employee;
@@ -35,15 +37,12 @@ export function EmployeeDetailsModal({ employee, open, onOpenChange }: EmployeeD
     onOpenChange(false);
   };
 
+  const qidStatus = calculateEmployeeQidStatus(employee.qidExpiry);
+  const qidMeta = EMPLOYEE_STATUS_META[qidStatus];
   const qidDays = getDaysRemaining(employee.qidExpiry);
-  const passportDays = employee.passportExpiry ? getDaysRemaining(employee.passportExpiry) : null;
+  const isOwner = employee.role?.toUpperCase() === 'OWNER';
 
-  const getBadgeStyle = (days: number | null) => {
-    if (days === null) return 'bg-muted text-muted-foreground border-border';
-    if (days < 0) return 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20';
-    if (days <= 30) return 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20 shadow-xs animate-pulse';
-    return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20';
-  };
+  const passportDays = employee.passportExpiry ? getDaysRemaining(employee.passportExpiry) : null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -51,29 +50,55 @@ export function EmployeeDetailsModal({ employee, open, onOpenChange }: EmployeeD
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <BadgeInfo className="h-5 w-5 text-primary" />
-            Personnel Profile & Documentation
+            Employee Profile & Documentation
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2 text-xs">
           {/* Header Card */}
-          <div className="p-3.5 border rounded-2xl bg-muted/20 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-primary/20 text-primary flex items-center justify-center font-bold text-base shrink-0 ring-1 ring-primary/20">
-                {employee.employeeName.charAt(0).toUpperCase()}
+          <div className="p-4 border rounded-2xl bg-muted/20 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-primary/20 text-primary flex items-center justify-center font-bold text-lg shrink-0 ring-1 ring-primary/20">
+                  {employee.employeeName.charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <h4 className="font-bold text-sm text-foreground">{employee.employeeName}</h4>
+                    <span className={cn(
+                      "px-2 py-0.2 rounded-md text-[9px] font-bold font-mono uppercase tracking-wider border",
+                      isOwner ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30" : "bg-muted text-muted-foreground border-border"
+                    )}>
+                      {isOwner ? 'Owner / Executive' : 'Employee'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{employee.notes || 'Personnel Record'}</p>
+                </div>
               </div>
-              <div>
-                <h4 className="font-bold text-sm text-foreground">{employee.employeeName}</h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">{employee.notes || 'Company Personnel'}</p>
-              </div>
+              <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold border uppercase tracking-wider bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 shrink-0">
+                {employee.status || 'Active'}
+              </span>
             </div>
-            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold border uppercase tracking-wider ${
-              employee.status === 'Active'
-                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20'
-                : 'bg-muted text-muted-foreground border-muted'
-            }`}>
-              {employee.status || 'Active'}
-            </span>
+
+            {/* Sponsoring & Working Company Grid */}
+            <div className="p-3 rounded-xl bg-background border space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground flex items-center gap-1.5">
+                  <Building className="w-3.5 h-3.5 text-primary" />
+                  <span>Registered Sponsoring Company:</span>
+                </span>
+                <strong className="text-foreground">{employee.company?.companyName || 'Unassigned'}</strong>
+              </div>
+              {employee.currentWorkingCompany && employee.currentWorkingCompanyId !== employee.companyId && (
+                <div className="flex items-center justify-between pt-1.5 border-t border-border/40 text-blue-600 dark:text-blue-400 font-medium">
+                  <span className="flex items-center gap-1.5">
+                    <Briefcase className="w-3.5 h-3.5" />
+                    <span>Current Working Company:</span>
+                  </span>
+                  <strong>{employee.currentWorkingCompany.companyName}</strong>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Contact Numbers */}
@@ -134,12 +159,8 @@ export function EmployeeDetailsModal({ employee, open, onOpenChange }: EmployeeD
 
             <div className="pt-2 border-t border-blue-500/20 flex items-center justify-between">
               <span className="text-[10px] text-muted-foreground uppercase font-medium">QID Status</span>
-              <span className={`px-2 py-0.5 rounded-full border text-[10px] font-semibold ${getBadgeStyle(qidDays)}`}>
-                {qidDays < 0
-                  ? `Expired ${-qidDays} days ago`
-                  : qidDays === 0
-                  ? 'Expires Today'
-                  : `${qidDays} days remaining`}
+              <span className={cn("px-2.5 py-0.5 rounded-full border text-[10px] font-mono font-bold", qidMeta.badgeBg, qidMeta.badgeText, qidMeta.badgeBorder)}>
+                {qidMeta.label} ({qidDays < 0 ? `${Math.abs(qidDays)}d ago` : `${qidDays}d left`})
               </span>
             </div>
           </div>
@@ -149,7 +170,7 @@ export function EmployeeDetailsModal({ employee, open, onOpenChange }: EmployeeD
             <div className="flex items-center justify-between border-b border-emerald-500/20 pb-2">
               <h5 className="font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
                 <BookOpen className="h-4 w-4" />
-                Passport Documentation
+                Passport Information
               </h5>
               {employee.passportPhoto && (
                 <Button
@@ -158,7 +179,7 @@ export function EmployeeDetailsModal({ employee, open, onOpenChange }: EmployeeD
                   className="h-6 text-[10px] gap-1 px-2 text-primary"
                   onClick={() => setViewingPhoto({ url: employee.passportPhoto!, title: `${employee.employeeName} — Passport Photo` })}
                 >
-                  <Eye className="h-3 w-3" /> View Passport Photo
+                  <Eye className="h-3 w-3" /> View Passport
                 </Button>
               )}
             </div>
@@ -166,136 +187,85 @@ export function EmployeeDetailsModal({ employee, open, onOpenChange }: EmployeeD
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <span className="text-[10px] text-muted-foreground block uppercase font-medium">Passport Number</span>
-                <span className="font-bold font-mono text-foreground text-xs mt-0.5 block">{employee.passportNumber || '—'}</span>
+                <span className="font-bold font-mono text-foreground text-xs mt-0.5 block">
+                  {employee.passportNumber || '—'}
+                </span>
               </div>
               <div>
-                <span className="text-[10px] text-muted-foreground block uppercase font-medium">Passport Expiry Date</span>
+                <span className="text-[10px] text-muted-foreground block uppercase font-medium">Expiry Date</span>
                 <span className="font-semibold text-foreground text-xs mt-0.5 block">
                   {employee.passportExpiry ? formatDate(employee.passportExpiry) : '—'}
                 </span>
               </div>
             </div>
 
-            {employee.passportExpiry && (
+            {passportDays !== null && (
               <div className="pt-2 border-t border-emerald-500/20 flex items-center justify-between">
                 <span className="text-[10px] text-muted-foreground uppercase font-medium">Passport Status</span>
-                <span className={`px-2 py-0.5 rounded-full border text-[10px] font-semibold ${getBadgeStyle(passportDays)}`}>
-                  {passportDays! < 0
-                    ? `Expired ${-passportDays!} days ago`
-                    : passportDays === 0
-                    ? 'Expires Today'
-                    : `${passportDays} days remaining`}
+                <span className={cn(
+                  "px-2.5 py-0.5 rounded-full border text-[10px] font-mono font-semibold",
+                  passportDays < 0 ? "bg-rose-500/10 text-rose-600 border-rose-500/20" : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                )}>
+                  {passportDays < 0 ? `Expired ${-passportDays}d ago` : `${passportDays}d left`}
                 </span>
               </div>
             )}
           </div>
 
-          {/* Company Sponsor details */}
-          <div className="border rounded-2xl p-4 space-y-2 bg-card shadow-xs">
-            <h5 className="font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 border-b pb-2">
-              <Building className="h-4 w-4 text-primary" />
-              Sponsoring Company
-            </h5>
-            {employee.company ? (
-              <div className="space-y-1 text-muted-foreground text-xs">
-                <p className="font-bold text-foreground">{employee.company.companyName}</p>
-                {employee.company.ownerName && <p>Owner: {employee.company.ownerName}</p>}
-                {employee.company.email && <p>Email: {employee.company.email}</p>}
-                {employee.company.phone && <p>Phone: {employee.company.phone}</p>}
-              </div>
-            ) : (
-              <p className="text-muted-foreground italic">No sponsor company linked.</p>
-            )}
-          </div>
           {/* Action Buttons */}
-          <div className="pt-2 flex items-center justify-between gap-3 border-t">
+          <div className="flex items-center justify-end gap-2 pt-2 border-t">
             <Button
-              type="button"
               variant="outline"
               size="sm"
-              className="text-rose-600 hover:bg-rose-500/10 text-xs gap-1.5"
-              onClick={() => setIsDeleteOpen(true)}
+              className="text-xs"
+              onClick={() => setIsEditOpen(true)}
             >
-              <Trash2 className="h-3.5 w-3.5" />
-              Delete Personnel
+              <Edit3 className="h-3.5 w-3.5 mr-1" />
+              Edit Profile
             </Button>
 
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="text-xs"
-                onClick={() => onOpenChange(false)}
-              >
-                Close
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                className="bg-primary text-primary-foreground text-xs gap-1.5 font-bold"
-                onClick={() => setIsEditOpen(true)}
-              >
-                <Edit3 className="h-3.5 w-3.5" />
-                Edit Profile
-              </Button>
-            </div>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="text-xs"
+              onClick={() => setIsDeleteOpen(true)}
+              disabled={deleteMutation.isPending}
+            >
+              <Trash2 className="h-3.5 w-3.5 mr-1" />
+              Delete Employee
+            </Button>
           </div>
         </div>
-
-        {/* Full Image Preview Modal */}
-        {viewingPhoto && (
-          <div
-            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
-            onClick={() => setViewingPhoto(null)}
-          >
-            <div className="relative max-w-xl max-h-[85vh] bg-card rounded-2xl overflow-hidden shadow-2xl border p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between pb-2 border-b">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-xs text-foreground">{viewingPhoto.title}</span>
-                  {viewingPhoto.url.includes('cloudinary') && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9px] font-mono bg-sky-500/10 text-sky-600 border border-sky-500/20">
-                      <Cloud className="h-2.5 w-2.5" /> Cloudinary
-                    </span>
-                  )}
-                </div>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setViewingPhoto(null)}>
-                  <X className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={viewingPhoto.url}
-                alt={viewingPhoto.title}
-                className="max-h-[60vh] w-auto mx-auto object-contain rounded-xl"
-              />
-              <div className="text-center pt-2">
-                <a href={viewingPhoto.url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary hover:underline font-mono">
-                  Open Original High-Res ↗
-                </a>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <EmployeeFormModal
-          employee={employee}
-          open={isEditOpen}
-          onOpenChange={(open) => {
-            setIsEditOpen(open);
-            if (!open) onOpenChange(false);
-          }}
-        />
-
-        <DeleteConfirmModal
-          open={isDeleteOpen}
-          onOpenChange={setIsDeleteOpen}
-          title="Delete Personnel Record"
-          description={`Are you sure you want to permanently delete "${employee.employeeName}" (QID: ${employee.qidNumber})? This action cannot be undone.`}
-          isLoading={deleteMutation.isPending}
-          onConfirm={handleDelete}
-        />
       </DialogContent>
+
+      <EmployeeFormModal
+        employee={employee}
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+      />
+
+      <DeleteConfirmModal
+        open={isDeleteOpen}
+        onOpenChange={setIsDeleteOpen}
+        title="Delete Employee"
+        description={`Are you sure you want to permanently delete ${employee.employeeName}? This action cannot be undone.`}
+        onConfirm={handleDelete}
+        isLoading={deleteMutation.isPending}
+      />
+
+      {/* Full Photo Modal Viewer */}
+      {viewingPhoto && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setViewingPhoto(null)}>
+          <div className="bg-card border rounded-2xl max-w-2xl w-full p-4 space-y-3" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b pb-2">
+              <span className="font-bold text-sm truncate text-foreground">{viewingPhoto.title}</span>
+              <Button variant="ghost" size="sm" onClick={() => setViewingPhoto(null)}>Close</Button>
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={viewingPhoto.url} alt={viewingPhoto.title} className="max-h-[70vh] w-auto mx-auto object-contain rounded-lg" />
+          </div>
+        </div>
+      )}
     </Dialog>
   );
 }

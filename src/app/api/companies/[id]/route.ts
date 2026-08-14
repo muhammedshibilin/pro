@@ -6,7 +6,7 @@ interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
-// GET /api/companies/[id] — Get single company details
+// GET /api/companies/[id] — Get single company details with owner, employees, and documents
 export async function GET(
   _req: NextRequest,
   context: RouteContext
@@ -16,6 +16,7 @@ export async function GET(
     const company = await prisma.company.findUnique({
       where: { id },
       include: {
+        owner: true,
         employees: {
           orderBy: { employeeName: 'asc' },
         },
@@ -68,7 +69,38 @@ export async function PATCH(
     if (body.licenseNumber !== undefined) updateData.licenseNumber = body.licenseNumber || null;
     if (body.licenseExpiry !== undefined) updateData.licenseExpiry = body.licenseExpiry ? new Date(body.licenseExpiry) : null;
     if (body.licensePhoto !== undefined) updateData.licensePhoto = body.licensePhoto || null;
-    if (body.ownerName !== undefined) updateData.ownerName = body.ownerName;
+    if (body.computerCardNumber !== undefined) updateData.computerCardNumber = body.computerCardNumber || null;
+    if (body.computerCardPhoto !== undefined) updateData.computerCardPhoto = body.computerCardPhoto || null;
+    
+    // Resolve Person / Owner
+    if (body.ownerId !== undefined) {
+      if (body.ownerId) {
+        updateData.owner = { connect: { id: body.ownerId } };
+        const person = await prisma.person.findUnique({ where: { id: body.ownerId } });
+        if (person) {
+          updateData.ownerName = person.name;
+        }
+      } else {
+        updateData.owner = { disconnect: true };
+        updateData.ownerName = body.ownerName || '';
+      }
+    } else if (body.ownerName !== undefined) {
+      const trimmed = String(body.ownerName).trim();
+      if (trimmed) {
+        let person = await prisma.person.findFirst({
+          where: { name: { equals: trimmed, mode: 'insensitive' } },
+        });
+        if (!person) {
+          person = await prisma.person.create({ data: { name: trimmed } });
+        }
+        updateData.owner = { connect: { id: person.id } };
+        updateData.ownerName = person.name;
+      } else {
+        updateData.owner = { disconnect: true };
+        updateData.ownerName = '';
+      }
+    }
+
     if (body.phone !== undefined) updateData.phone = body.phone;
     if (body.email !== undefined) updateData.email = body.email;
     if (body.notes !== undefined) updateData.notes = body.notes;
@@ -78,6 +110,7 @@ export async function PATCH(
       where: { id },
       data: updateData,
       include: {
+        owner: true,
         _count: {
           select: {
             employees: true,

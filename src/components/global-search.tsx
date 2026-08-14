@@ -105,7 +105,7 @@ export function GlobalSearch({
 
     // 2. Employees
     results.employees.forEach((e) => {
-      let matched = 'Personnel Name';
+      let matched = 'Employee Name';
       if (query && (e.qidNumber || '').includes(query)) matched = 'Qatar ID Number';
       else if (query && (e.passportNumber || '').toLowerCase().includes(query.toLowerCase())) matched = 'Passport Number';
       else if (query && (e.phone || '').toLowerCase().includes(query.toLowerCase())) matched = 'Contact Number';

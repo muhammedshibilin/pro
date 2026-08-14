@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
-import { calculateExpiryStatus } from '@/lib/utils';
+import { calculateCompanyDocumentStatus } from '@/lib/status-calculator';
 
 // GET /api/documents — List documents with dynamic status calculation
 export async function GET(req: NextRequest) {
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 
     const mappedDocs = docs.map((doc) => ({
       ...doc,
-      status: calculateExpiryStatus(doc.expiryDate),
+      status: calculateCompanyDocumentStatus(doc.expiryDate),
     }));
 
     const filteredDocs = statusFilter
@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
 
     const result = {
       ...doc,
-      status: calculateExpiryStatus(doc.expiryDate),
+      status: calculateCompanyDocumentStatus(doc.expiryDate),
     };
 
     return NextResponse.json(

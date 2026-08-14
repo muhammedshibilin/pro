@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { calculateExpiryStatus } from '@/lib/utils';
+import { calculateCompanyDocumentStatus, calculateEmployeeQidStatus } from '@/lib/status-calculator';
 
 // GET /api/search?q=... — Global multi-entity search
 export async function GET(req: NextRequest) {
@@ -15,19 +15,21 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const [companies, employees, rawDocuments] = await Promise.all([
+    const [companies, rawEmployees, rawDocuments] = await Promise.all([
       prisma.company.findMany({
         where: {
           OR: [
-            { companyName: { contains: query } },
-            { crNumber: { contains: query } },
-            { licenseNumber: { contains: query } },
-            { ownerName: { contains: query } },
-            { email: { contains: query } },
-            { phone: { contains: query } },
+            { companyName: { contains: query, mode: 'insensitive' } },
+            { crNumber: { contains: query, mode: 'insensitive' } },
+            { licenseNumber: { contains: query, mode: 'insensitive' } },
+            { computerCardNumber: { contains: query, mode: 'insensitive' } },
+            { ownerName: { contains: query, mode: 'insensitive' } },
+            { email: { contains: query, mode: 'insensitive' } },
+            { phone: { contains: query, mode: 'insensitive' } },
           ],
         },
         include: {
+          owner: true,
           _count: {
             select: {
               employees: true,
@@ -40,25 +42,27 @@ export async function GET(req: NextRequest) {
       prisma.employee.findMany({
         where: {
           OR: [
-            { employeeName: { contains: query } },
-            { qidNumber: { contains: query } },
-            { passportNumber: { contains: query } },
-            { phone: { contains: query } },
-            { nativeRelativePhone: { contains: query } },
-            { employeeCode: { contains: query } },
+            { employeeName: { contains: query, mode: 'insensitive' } },
+            { qidNumber: { contains: query, mode: 'insensitive' } },
+            { passportNumber: { contains: query, mode: 'insensitive' } },
+            { phone: { contains: query, mode: 'insensitive' } },
+            { nativeRelativePhone: { contains: query, mode: 'insensitive' } },
+            { employeeCode: { contains: query, mode: 'insensitive' } },
+            { role: { contains: query, mode: 'insensitive' } },
           ],
         },
         include: {
           company: true,
+          currentWorkingCompany: true,
         },
         take: 15,
       }),
       prisma.companyDocument.findMany({
         where: {
           OR: [
-            { documentType: { contains: query } },
-            { documentNumber: { contains: query } },
-            { notes: { contains: query } },
+            { documentType: { contains: query, mode: 'insensitive' } },
+            { documentNumber: { contains: query, mode: 'insensitive' } },
+            { notes: { contains: query, mode: 'insensitive' } },
           ],
         },
         include: {
@@ -68,9 +72,14 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
+    const employees = rawEmployees.map((emp) => ({
+      ...emp,
+      qidStatus: calculateEmployeeQidStatus(emp.qidExpiry),
+    }));
+
     const documents = rawDocuments.map((doc) => ({
       ...doc,
-      status: calculateExpiryStatus(doc.expiryDate),
+      status: calculateCompanyDocumentStatus(doc.expiryDate),
     }));
 
     return NextResponse.json({
@@ -84,7 +93,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error('Error during global search:', error);
     return NextResponse.json(
-      { statusCode: 500, message: 'Search query failed' },
+      { statusCode: 500, message: 'Failed to perform search' },
       { status: 500 }
     );
   }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
-import { calculateExpiryStatus } from '@/lib/utils';
+import { calculateCompanyDocumentStatus } from '@/lib/status-calculator';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -35,7 +35,7 @@ export async function GET(
       statusCode: 200,
       data: {
         ...doc,
-        status: calculateExpiryStatus(doc.expiryDate),
+        status: calculateCompanyDocumentStatus(doc.expiryDate),
       },
     });
   } catch (error) {
@@ -76,7 +76,7 @@ export async function PATCH(
       statusCode: 200,
       data: {
         ...doc,
-        status: calculateExpiryStatus(doc.expiryDate),
+        status: calculateCompanyDocumentStatus(doc.expiryDate),
       },
       message: 'Document updated successfully',
     });

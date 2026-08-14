@@ -151,8 +151,8 @@ export function CloudinaryPhotoUpload({
 
       {/* Populated Photo Preview */}
       {value && !uploading ? (
-        <div className="p-2.5 border rounded-xl bg-card shadow-xs flex items-center justify-between gap-3 group hover:border-primary/40 transition-colors">
-          <div className="flex items-center gap-2.5 min-w-0">
+        <div className="p-2.5 border rounded-xl bg-card shadow-xs flex flex-wrap items-center justify-between gap-2.5 group hover:border-primary/40 transition-colors">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
             {isImage(value) ? (
               <div 
                 onClick={() => setPreviewModalOpen(true)}
@@ -180,8 +180,8 @@ export function CloudinaryPhotoUpload({
                 <FileText className="h-5 w-5" />
               </a>
             )}
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-1.5">
                 <span className="font-semibold text-foreground text-xs truncate">
                   {value.toLowerCase().includes('.pdf') ? 'PDF Document' : 'Document File'}
                 </span>
@@ -196,9 +196,9 @@ export function CloudinaryPhotoUpload({
                 href={value}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[10px] text-primary hover:underline font-mono truncate block mt-0.5 max-w-[200px]"
+                className="text-[10px] text-primary hover:underline font-mono truncate block mt-0.5 max-w-full"
               >
-                {value.length > 35 ? value.substring(0, 35) + '...' : value}
+                {value.length > 30 ? value.substring(0, 30) + '...' : value}
               </a>
             </div>
           </div>
@@ -208,7 +208,7 @@ export function CloudinaryPhotoUpload({
               type="button"
               variant="outline"
               size="sm"
-              className="h-7 text-[11px] px-2"
+              className="h-7 text-[11px] px-2.5"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
             >

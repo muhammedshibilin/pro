@@ -5,18 +5,30 @@ import { AppData } from '@/hooks/use-app-data';
 import { useDeleteCompany } from '@/hooks/use-companies';
 import { DesktopFilterPanel } from './DesktopFilterPanel';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit3, Trash2, Mail, Phone, Users, FileCheck, ShieldCheck, Eye, Cloud } from 'lucide-react';
+import { Select } from '@/components/ui/select';
+import { Plus, Edit3, Trash2, Phone, Users, FileCheck, ShieldCheck, Eye, CreditCard, User } from 'lucide-react';
 import { CompanyFormModal } from '@/components/company-form-modal';
 import { DeleteConfirmModal } from '@/components/delete-confirm-modal';
 import { Company } from '@/types';
 import { formatDate, getDaysRemaining } from '@/lib/utils';
+import { 
+  calculateCompanyDocumentStatus, 
+  COMPANY_DOC_STATUS_META, 
+  CompanyDocumentStatus 
+} from '@/lib/status-calculator';
+import { cn } from '@/lib/utils';
 
 interface DesktopCompanyTableProps {
   appData: AppData;
 }
 
 export function DesktopCompanyTable({ appData }: DesktopCompanyTableProps) {
-  const { companies } = appData;
+  const { 
+    companies, 
+    companyCounts, 
+    companyStatusFilter, 
+    setCompanyStatusFilter 
+  } = appData;
   const deleteMutation = useDeleteCompany();
   
   const [search, setSearch] = useState('');
@@ -49,15 +61,36 @@ export function DesktopCompanyTable({ appData }: DesktopCompanyTableProps) {
     }
   };
 
+  const getCompanyOverallStatus = (c: Company): CompanyDocumentStatus => {
+    const statuses: CompanyDocumentStatus[] = [];
+    if (c.crExpiry) statuses.push(calculateCompanyDocumentStatus(c.crExpiry));
+    if (c.licenseExpiry) statuses.push(calculateCompanyDocumentStatus(c.licenseExpiry));
+    if (c.computerCardNumber && c.licenseExpiry) statuses.push(calculateCompanyDocumentStatus(c.licenseExpiry));
+    
+    if (statuses.includes('DANGER')) return 'DANGER';
+    if (statuses.includes('WARNING')) return 'WARNING';
+    return 'SAFE';
+  };
+
   const filtered = companies.filter(c => {
     const q = search.toLowerCase();
-    return (
+    const matchesSearch =
       (c.companyName || '').toLowerCase().includes(q) ||
       (c.crNumber || '').toLowerCase().includes(q) ||
       (c.licenseNumber || '').toLowerCase().includes(q) ||
+      (c.computerCardNumber || '').toLowerCase().includes(q) ||
       (c.ownerName || '').toLowerCase().includes(q) ||
-      (c.email || '').toLowerCase().includes(q)
-    );
+      (c.owner?.name || '').toLowerCase().includes(q) ||
+      (c.email || '').toLowerCase().includes(q);
+
+    if (!matchesSearch) return false;
+
+    if (companyStatusFilter && companyStatusFilter !== 'ALL') {
+      const overall = getCompanyOverallStatus(c);
+      if (overall !== companyStatusFilter) return false;
+    }
+
+    return true;
   });
 
   const handleSelectAll = (checked: boolean) => {
@@ -69,29 +102,39 @@ export function DesktopCompanyTable({ appData }: DesktopCompanyTableProps) {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
-  const renderExpiryBadge = (dateString?: string | null) => {
+  const renderCompanyDocBadge = (dateString?: string | null) => {
     if (!dateString) return <span className="text-muted-foreground italic text-[10px]">No Expiry Set</span>;
+    const status = calculateCompanyDocumentStatus(dateString);
+    const meta = COMPANY_DOC_STATUS_META[status];
     const days = getDaysRemaining(dateString);
-    if (days < 0) {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
-          Expired ({Math.abs(days)}d ago)
-        </span>
-      );
+
+    let detailText = '';
+    if (status === 'SAFE') {
+      detailText = `Valid (${formatDate(dateString)})`;
+    } else if (status === 'WARNING') {
+      detailText = `Warning (${days}d left)`;
+    } else {
+      detailText = days < 0 ? `Expired (${Math.abs(days)}d ago)` : `Danger (${days}d left)`;
     }
-    if (days <= 30) {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-          {days}d left
-        </span>
-      );
-    }
+
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-        Valid ({formatDate(dateString)})
+      <span className={cn(
+        "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold border whitespace-nowrap",
+        meta.badgeBg,
+        meta.badgeText,
+        meta.badgeBorder
+      )}>
+        {detailText}
       </span>
     );
   };
+
+  const filterChips: { id: string; label: string; count: number; colorClass: string }[] = [
+    { id: 'ALL', label: 'All Companies', count: companies.length, colorClass: 'bg-muted text-foreground' },
+    { id: 'SAFE', label: '🟢 Safe (3+ Mo)', count: companyCounts.safe, colorClass: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30' },
+    { id: 'WARNING', label: '🟡 Warning (2 Mo)', count: companyCounts.warning, colorClass: 'bg-amber-500/20 text-amber-900 dark:text-amber-300 border-amber-500/40 font-bold' },
+    { id: 'DANGER', label: '🔴 Danger (<1 Mo / Exp)', count: companyCounts.danger, colorClass: 'bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/40 font-bold' },
+  ];
 
   return (
     <div className="flex flex-col w-full animate-fade-in space-y-6">
@@ -101,25 +144,59 @@ export function DesktopCompanyTable({ appData }: DesktopCompanyTableProps) {
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-display font-extrabold tracking-tight text-foreground">Company Registry</h1>
             <span className="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-              {companies.length} Registered
+              {companies.length} Accounts
             </span>
           </div>
           <p className="text-muted-foreground text-xs mt-1">
-            Corporate entity registry tracking Commercial Registrations (CR), Trade Licenses, and Cloudinary photos.
+            Corporate entities database tracking Commercial Registrations (CR), Trade Licenses, Computer Cards, and multi-company Owner profiles.
           </p>
         </div>
 
         <Button onClick={handleAdd} className="rounded-xl shadow-md shadow-primary/20 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold h-10 px-4">
           <Plus className="h-4 w-4 mr-2" />
-          Add Entity
+          Add Company
         </Button>
       </div>
 
-      <DesktopFilterPanel searchValue={search} onSearchChange={setSearch} />
+      {/* 3-Tier Status Filter Quick Chips */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {filterChips.map((chip) => {
+          const isSelected = (companyStatusFilter || 'ALL') === chip.id;
+          return (
+            <button
+              key={chip.id}
+              onClick={() => setCompanyStatusFilter(chip.id)}
+              className={cn(
+                "px-3 py-1.5 rounded-xl text-xs font-medium border transition-all cursor-pointer flex items-center gap-2",
+                chip.colorClass,
+                isSelected ? "ring-2 ring-primary font-bold shadow-xs scale-105" : "opacity-80 hover:opacity-100"
+              )}
+            >
+              <span>{chip.label}</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-black/10 text-[10px] font-mono">
+                {chip.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <DesktopFilterPanel searchValue={search} onSearchChange={setSearch}>
+        <Select 
+          options={[
+            {value: 'ALL', label: 'All Document Statuses'}, 
+            {value: 'SAFE', label: '🟢 Safe (3+ Months Remaining)'}, 
+            {value: 'WARNING', label: '🟡 Warning (2 Months Remaining)'}, 
+            {value: 'DANGER', label: '🔴 Danger (Final Month or Expired)'}
+          ]} 
+          value={companyStatusFilter || 'ALL'} 
+          onChange={(e) => setCompanyStatusFilter(e.target.value)} 
+        />
+      </DesktopFilterPanel>
 
       {selectedIds.length > 0 && (
         <div className="bg-primary/10 border border-primary/30 rounded-xl p-3.5 flex items-center justify-between animate-fade-in">
-          <span className="text-xs font-semibold text-primary font-mono">{selectedIds.length} entities selected</span>
+          <span className="text-xs font-semibold text-primary font-mono">{selectedIds.length} companies selected</span>
           <Button variant="destructive" size="sm" onClick={() => setDeletingId('bulk')} className="rounded-lg h-8 text-xs font-semibold">
             <Trash2 className="h-3.5 w-3.5 mr-1.5" />
             Delete Selected
@@ -141,17 +218,19 @@ export function DesktopCompanyTable({ appData }: DesktopCompanyTableProps) {
                     className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5" 
                   />
                 </th>
-                <th className="px-4 py-3.5">Company Entity</th>
-                <th className="px-4 py-3.5">Commercial Reg (CR)</th>
+                <th className="px-4 py-3.5">Company Name</th>
+                <th className="px-4 py-3.5">Owner / Person</th>
+                <th className="px-4 py-3.5">CR Details</th>
                 <th className="px-4 py-3.5">Trade License</th>
-                <th className="px-4 py-3.5">Authorized Officer</th>
-                <th className="px-4 py-3.5">Staff Count</th>
+                <th className="px-4 py-3.5">Computer Card</th>
+                <th className="px-4 py-3.5 text-center">Staff Count</th>
                 <th className="px-4 py-3.5 text-right pr-6">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
               {filtered.map(company => {
-                const staffCount = appData.employees.filter(e => e.companyId === company.id).length;
+                const ownerDisplayName = company.owner?.name || company.ownerName || '—';
+
                 return (
                   <tr key={company.id} className="hover:bg-muted/40 transition-colors group">
                     <td className="px-4 py-3.5 text-center">
@@ -164,13 +243,29 @@ export function DesktopCompanyTable({ appData }: DesktopCompanyTableProps) {
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary/20 to-blue-500/10 text-primary flex items-center justify-center font-display font-bold text-xs shrink-0 border border-primary/20">
+                        <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-blue-500/20 to-primary/20 text-primary flex items-center justify-center font-display font-bold text-xs shrink-0 ring-1 ring-primary/20">
                           {company.companyName.charAt(0).toUpperCase()}
                         </div>
                         <div className="flex flex-col">
                           <span className="font-semibold text-xs text-foreground group-hover:text-primary transition-colors">{company.companyName}</span>
-                          <span className="text-[10px] text-muted-foreground font-mono">ID: {company.id.substring(0, 8)}</span>
+                          <span className="text-[10px] text-muted-foreground">{company.email || 'No email provided'}</span>
                         </div>
+                      </div>
+                    </td>
+
+                    {/* Owner / Responsible Person */}
+                    <td className="px-4 py-3.5">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-medium text-foreground flex items-center gap-1">
+                          <User className="w-3 h-3 text-primary shrink-0" />
+                          <span>{ownerDisplayName}</span>
+                        </span>
+                        {company.phone && (
+                          <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-mono">
+                            <Phone className="h-3 w-3 text-muted-foreground" />
+                            <span>{company.phone}</span>
+                          </div>
+                        )}
                       </div>
                     </td>
 
@@ -183,15 +278,15 @@ export function DesktopCompanyTable({ appData }: DesktopCompanyTableProps) {
                           {company.crPhoto && (
                             <button
                               type="button"
-                              onClick={() => setViewingPhoto({ url: company.crPhoto!, title: `${company.companyName} — CR Certificate` })}
+                              onClick={() => setViewingPhoto({ url: company.crPhoto!, title: `${company.companyName} — CR Document` })}
                               className="text-primary hover:text-primary/80 transition-colors"
-                              title="View Cloudinary Photo"
+                              title="View CR Document Photo"
                             >
                               <Eye className="h-3.5 w-3.5 text-blue-500 hover:scale-110 transition-transform" />
                             </button>
                           )}
                         </div>
-                        <div>{renderExpiryBadge(company.crExpiry)}</div>
+                        <div>{renderCompanyDocBadge(company.crExpiry)}</div>
                       </div>
                     </td>
 
@@ -206,30 +301,46 @@ export function DesktopCompanyTable({ appData }: DesktopCompanyTableProps) {
                               type="button"
                               onClick={() => setViewingPhoto({ url: company.licensePhoto!, title: `${company.companyName} — Trade License` })}
                               className="text-primary hover:text-primary/80 transition-colors"
-                              title="View Cloudinary Photo"
+                              title="View Trade License Photo"
                             >
                               <Eye className="h-3.5 w-3.5 text-emerald-500 hover:scale-110 transition-transform" />
                             </button>
                           )}
                         </div>
-                        <div>{renderExpiryBadge(company.licenseExpiry)}</div>
+                        <div>{renderCompanyDocBadge(company.licenseExpiry)}</div>
                       </div>
                     </td>
 
-                    {/* Authorized Officer */}
-                    <td className="px-4 py-3.5 text-muted-foreground">
-                      <div className="flex flex-col text-[11px]">
-                        <span className="font-semibold text-foreground">{company.ownerName || '—'}</span>
-                        {company.phone && <span className="font-mono text-[10px] text-muted-foreground flex items-center gap-1"><Phone className="h-2.5 w-2.5" /> {company.phone}</span>}
-                        {company.email && <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Mail className="h-2.5 w-2.5" /> {company.email}</span>}
-                      </div>
+                    {/* Computer Card Details */}
+                    <td className="px-4 py-3.5">
+                      {company.computerCardNumber ? (
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-1.5 font-mono text-[11px] font-semibold text-foreground">
+                            <CreditCard className="h-3.5 w-3.5 text-purple-500 shrink-0" />
+                            <span>{company.computerCardNumber}</span>
+                            {company.computerCardPhoto && (
+                              <button
+                                type="button"
+                                onClick={() => setViewingPhoto({ url: company.computerCardPhoto!, title: `${company.companyName} — Computer Card` })}
+                                className="text-primary hover:text-primary/80 transition-colors"
+                                title="View Computer Card Photo"
+                              >
+                                <Eye className="h-3.5 w-3.5 text-purple-500 hover:scale-110 transition-transform" />
+                              </button>
+                            )}
+                          </div>
+                          <div>{renderCompanyDocBadge(company.licenseExpiry)}</div>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground italic text-[11px]">No Computer Card</span>
+                      )}
                     </td>
 
                     {/* Staff Count */}
-                    <td className="px-4 py-3.5 font-mono">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-muted text-muted-foreground font-semibold text-[10px]">
-                        <Users className="h-3 w-3" />
-                        {staffCount} employees
+                    <td className="px-4 py-3.5 text-center">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-mono text-[11px] font-semibold bg-muted text-foreground border">
+                        <Users className="h-3 w-3 text-muted-foreground" />
+                        {company._count?.employees ?? 0}
                       </span>
                     </td>
 
@@ -239,30 +350,32 @@ export function DesktopCompanyTable({ appData }: DesktopCompanyTableProps) {
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-8 w-8 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10" 
+                          className="h-8 w-8 text-muted-foreground hover:text-primary rounded-lg"
                           onClick={() => handleEdit(company)}
-                          title="Edit Company Details"
+                          title="Edit Company"
                         >
-                          <Edit3 className="h-3.5 w-3.5" />
+                          <Edit3 className="h-4 w-4" />
                         </Button>
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10" 
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive rounded-lg"
                           onClick={() => setDeletingId(company.id)}
                           title="Delete Company"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </td>
                   </tr>
                 );
               })}
+
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-muted-foreground text-xs">
-                    No companies matched your search criteria.
+                  <td colSpan={8} className="text-center py-12 text-muted-foreground">
+                    <p className="font-semibold text-sm">No companies found</p>
+                    <p className="text-xs mt-1">Try refining your search query or status filter.</p>
                   </td>
                 </tr>
               )}
@@ -271,60 +384,35 @@ export function DesktopCompanyTable({ appData }: DesktopCompanyTableProps) {
         </div>
       </div>
 
-      {/* Cloudinary Photo Full Preview Modal */}
+      {/* Modals */}
+      <CompanyFormModal 
+        company={editingCompany} 
+        open={isFormOpen} 
+        onOpenChange={setIsFormOpen} 
+      />
+
+      <DeleteConfirmModal 
+        open={!!deletingId} 
+        onOpenChange={(open) => !open && setDeletingId(null)}
+        title="Delete Corporate Account"
+        description="Are you sure you want to delete this company? All associated employees and documents will be permanently removed."
+        onConfirm={handleDeleteConfirm}
+        isLoading={deleteMutation.isPending}
+      />
+
+      {/* Full Photo Modal Viewer */}
       {viewingPhoto && (
-        <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
-          onClick={() => setViewingPhoto(null)}
-        >
-          <div className="relative max-w-2xl max-h-[85vh] bg-card rounded-2xl overflow-hidden shadow-2xl border p-4" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between pb-3 border-b mb-3">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-xs text-foreground">{viewingPhoto.title}</span>
-                {viewingPhoto.url.includes('cloudinary') && (
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">
-                    <Cloud className="h-2.5 w-2.5" /> Cloudinary CDN
-                  </span>
-                )}
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs"
-                onClick={() => setViewingPhoto(null)}
-              >
-                Close
-              </Button>
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setViewingPhoto(null)}>
+          <div className="bg-card border rounded-2xl max-w-2xl w-full p-4 space-y-3" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b pb-2">
+              <span className="font-bold text-sm truncate text-foreground">{viewingPhoto.title}</span>
+              <Button variant="ghost" size="sm" onClick={() => setViewingPhoto(null)}>Close</Button>
             </div>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={viewingPhoto.url}
-              alt={viewingPhoto.title}
-              className="max-h-[65vh] w-auto mx-auto object-contain rounded-xl shadow-md"
-            />
-            <div className="pt-3 text-center">
-              <a
-                href={viewingPhoto.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[11px] text-primary hover:underline font-mono"
-              >
-                Open Original Full Image ↗
-              </a>
-            </div>
+            <img src={viewingPhoto.url} alt={viewingPhoto.title} className="max-h-[70vh] w-auto mx-auto object-contain rounded-lg" />
           </div>
         </div>
       )}
-
-      <CompanyFormModal open={isFormOpen} onOpenChange={setIsFormOpen} company={editingCompany} />
-      <DeleteConfirmModal 
-        open={!!deletingId} 
-        onOpenChange={(open) => !open && setDeletingId(null)} 
-        title="Delete Company(s)" 
-        description="Are you sure you want to delete? This will also remove all associated employees and documents." 
-        isLoading={deleteMutation.isPending} 
-        onConfirm={handleDeleteConfirm} 
-      />
     </div>
   );
 }

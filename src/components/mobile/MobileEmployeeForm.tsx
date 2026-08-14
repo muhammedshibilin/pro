@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Employee } from '@/types';
-import { ArrowLeft, UserPlus, Phone, Globe, CreditCard, BookOpen } from 'lucide-react';
+import { ArrowLeft, UserPlus, Phone, Globe, CreditCard, BookOpen, Building2, Briefcase, UserCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCreateEmployee, useUpdateEmployee } from '@/hooks/use-employees';
@@ -24,9 +24,13 @@ export default function MobileEmployeeForm({ employee, onBack }: MobileEmployeeF
     }
   };
 
+  const { data: companies = [] } = useCompanies();
+
   const [formData, setFormData] = useState({
     employeeName: employee?.employeeName || '',
-    companyId: employee?.companyId || '',
+    role: (employee?.role?.toUpperCase() === 'OWNER' ? 'OWNER' : 'EMPLOYEE'),
+    companyId: employee?.companyId || (companies[0]?.id || ''),
+    currentWorkingCompanyId: employee?.currentWorkingCompanyId || '',
     phone: employee?.phone || '',
     nativeRelativePhone: employee?.nativeRelativePhone || '',
     qidNumber: employee?.qidNumber || '',
@@ -41,18 +45,30 @@ export default function MobileEmployeeForm({ employee, onBack }: MobileEmployeeF
 
   const createMutation = useCreateEmployee();
   const updateMutation = useUpdateEmployee();
-  const { data: companies = [] } = useCompanies();
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (employee) {
-      await updateMutation.mutateAsync({ id: employee.id, data: formData });
-    } else {
-      await createMutation.mutateAsync(formData as unknown as Parameters<typeof createMutation.mutateAsync>[0]);
+    setErrorMessage(null);
+    try {
+      const payload = {
+        ...formData,
+        currentWorkingCompanyId: formData.currentWorkingCompanyId || null,
+      };
+
+      if (employee) {
+        await updateMutation.mutateAsync({ id: employee.id, data: payload });
+      } else {
+        await createMutation.mutateAsync(payload as unknown as Parameters<typeof createMutation.mutateAsync>[0]);
+      }
+      onBack();
+    } catch (err: unknown) {
+      console.error('Error saving employee:', err);
+      const apiErr = err as { response?: { data?: { message?: string } }; message?: string };
+      setErrorMessage(apiErr?.response?.data?.message || apiErr?.message || 'Failed to save employee record');
     }
-    onBack();
   };
 
   const handleChange = (field: string, value: string) => {
@@ -60,40 +76,70 @@ export default function MobileEmployeeForm({ employee, onBack }: MobileEmployeeF
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col animate-in slide-in-from-bottom-full">
-      <div className="flex items-center p-4 border-b bg-card">
-        <Button variant="ghost" size="icon" onClick={onBack}>
-          <ArrowLeft className="w-6 h-6" />
+    <div className="fixed inset-0 z-50 bg-background flex flex-col w-full max-w-full overflow-hidden animate-in slide-in-from-bottom-full">
+      {/* Top App Bar */}
+      <header className="flex items-center px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 border-b bg-card shadow-xs shrink-0">
+        <Button variant="ghost" size="icon" onClick={onBack} className="h-10 w-10 shrink-0">
+          <ArrowLeft className="w-5 h-5" />
+          <span className="sr-only">Back</span>
         </Button>
-        <h1 className="text-lg font-bold ml-2 flex items-center gap-2">
-          <UserPlus className="w-5 h-5 text-primary" />
-          {employee ? 'Edit Personnel Profile' : 'Add Personnel Profile'}
+        <h1 className="text-base sm:text-lg font-bold ml-2 flex items-center gap-2 truncate">
+          <UserPlus className="w-5 h-5 text-primary shrink-0" />
+          <span>{employee ? 'Edit Employee Profile' : 'Register New Employee'}</span>
         </h1>
-      </div>
+      </header>
 
-      <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 pb-28 space-y-4">
-        {/* Core Info */}
-        <div className="p-3.5 bg-card border rounded-2xl space-y-3 shadow-xs">
+      {errorMessage && (
+        <div className="m-4 p-3.5 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold flex items-center gap-2">
+          <span>⚠️</span>
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
+      {/* Form Fields Scroll Container */}
+      <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 pb-[max(7rem,calc(env(safe-area-inset-bottom)+6rem))] space-y-4">
+        {/* Core Info & Role */}
+        <div className="p-4 bg-card border rounded-2xl space-y-3.5 shadow-xs">
+          <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+            <UserCheck className="w-4 h-4 text-primary" />
+            <span>Profile & Role Information</span>
+          </div>
+
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">FULL NAME *</label>
+            <label className="text-xs font-bold text-foreground">EMPLOYEE FULL NAME *</label>
             <Input 
               required 
               value={formData.employeeName}
               onChange={(e) => handleChange('employeeName', e.target.value)}
-              className="h-11 text-sm rounded-xl font-semibold"
-              placeholder="Sarah Connor"
+              className="h-12 text-sm rounded-xl font-semibold bg-background"
+              placeholder="e.g. Ahmed Ali"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">SPONSOR COMPANY *</label>
+            <label className="text-xs font-bold text-foreground">ROLE *</label>
+            <select 
+              value={formData.role}
+              onChange={(e) => handleChange('role', e.target.value)}
+              className="w-full h-12 px-3 py-2 bg-background border border-input rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="EMPLOYEE">Employee</option>
+              <option value="OWNER">Owner / Executive</option>
+            </select>
+          </div>
+
+          <div className="space-y-1.5 pt-1 border-t border-border/40">
+            <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5 text-primary" />
+              <span>REGISTERED COMPANY (SPONSOR) *</span>
+            </label>
             <select 
               required
               value={formData.companyId}
               onChange={(e) => handleChange('companyId', e.target.value)}
-              className="w-full h-11 px-3 py-2 bg-background border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full h-12 px-3 py-2 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             >
-              <option value="" disabled>Select a sponsor</option>
+              <option value="" disabled>Select registered sponsoring company</option>
               {companies.map(c => (
                 <option key={c.id} value={c.id}>{c.companyName}</option>
               ))}
@@ -101,11 +147,29 @@ export default function MobileEmployeeForm({ employee, onBack }: MobileEmployeeF
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">STATUS</label>
+            <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+              <Briefcase className="w-3.5 h-3.5 text-blue-600" />
+              <span>CURRENT WORKING COMPANY (OPTIONAL)</span>
+            </label>
+            <select 
+              value={formData.currentWorkingCompanyId}
+              onChange={(e) => handleChange('currentWorkingCompanyId', e.target.value)}
+              className="w-full h-12 px-3 py-2 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="">Same as Registered Company (Default)</option>
+              {companies.map(c => (
+                <option key={c.id} value={c.id}>{c.companyName}</option>
+              ))}
+            </select>
+            <p className="text-[11px] text-muted-foreground">Select if employee is assigned or subcontracted to another firm</p>
+          </div>
+
+          <div className="space-y-1.5 pt-1">
+            <label className="text-xs font-bold text-foreground">EMPLOYMENT STATUS</label>
             <select 
               value={formData.status}
               onChange={(e) => handleChange('status', e.target.value)}
-              className="w-full h-11 px-3 py-2 bg-background border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full h-12 px-3 py-2 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             >
               <option value="Active">Active (Compliant)</option>
               <option value="On Leave">On Leave</option>
@@ -115,43 +179,45 @@ export default function MobileEmployeeForm({ employee, onBack }: MobileEmployeeF
         </div>
 
         {/* Contact Numbers */}
-        <div className="p-3.5 bg-gradient-to-br from-amber-500/5 to-orange-500/5 border border-amber-500/20 rounded-2xl space-y-3 shadow-xs">
+        <div className="p-4 bg-gradient-to-br from-amber-500/5 to-orange-500/5 border border-amber-500/20 rounded-2xl space-y-3.5 shadow-xs">
           <div className="flex items-center gap-2 text-xs font-bold text-amber-700 dark:text-amber-400">
-            <Phone className="w-4 h-4" />
-            <span>Contact Details</span>
+            <Phone className="w-4 h-4 shrink-0" />
+            <span>Contact Information</span>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
-              <Phone className="w-3 h-3 text-amber-600" /> LOCAL / QATAR CONTACT
+            <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
+              <Phone className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span>LOCAL / QATAR CONTACT NUMBER</span>
             </label>
             <Input 
               type="tel"
               value={formData.phone}
               onChange={(e) => handleChange('phone', e.target.value)}
-              className="h-11 text-sm rounded-xl font-mono bg-background"
+              className="h-12 text-sm rounded-xl font-mono bg-background"
               placeholder="+974 5511 2233"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
-              <Globe className="w-3 h-3 text-amber-600" /> NATIVE RELATIVE CONTACT
+            <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
+              <Globe className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span>NATIVE RELATIVE CONTACT (EMERGENCY)</span>
             </label>
             <Input 
               type="tel"
               value={formData.nativeRelativePhone}
               onChange={(e) => handleChange('nativeRelativePhone', e.target.value)}
-              className="h-11 text-sm rounded-xl font-mono bg-background"
+              className="h-12 text-sm rounded-xl font-mono bg-background"
               placeholder="+91 98470 12345 (Father / Spouse)"
             />
           </div>
         </div>
 
         {/* Qatar ID Details */}
-        <div className="p-3.5 bg-gradient-to-br from-blue-500/5 to-indigo-500/5 border border-blue-500/20 rounded-2xl space-y-3 shadow-xs">
+        <div className="p-4 bg-gradient-to-br from-blue-500/5 to-indigo-500/5 border border-blue-500/20 rounded-2xl space-y-3.5 shadow-xs">
           <div className="flex items-center gap-2 text-xs font-bold text-blue-700 dark:text-blue-400">
-            <CreditCard className="w-4 h-4" />
+            <CreditCard className="w-4 h-4 shrink-0" />
             <span>Qatar ID (QID) Details</span>
           </div>
 
@@ -161,19 +227,19 @@ export default function MobileEmployeeForm({ employee, onBack }: MobileEmployeeF
               required
               value={formData.qidNumber}
               onChange={(e) => handleChange('qidNumber', e.target.value)}
-              className="h-11 text-sm rounded-xl font-mono bg-background"
-              placeholder="28567891234"
+              className="h-12 text-sm rounded-xl font-mono bg-background"
+              placeholder="e.g. 28412345678"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold text-muted-foreground">QID EXPIRE DATE *</label>
+            <label className="text-[11px] font-semibold text-muted-foreground">QID EXPIRY DATE *</label>
             <Input 
               required
               type="date"
               value={formData.qidExpiry}
               onChange={(e) => handleChange('qidExpiry', e.target.value)}
-              className="h-11 text-sm rounded-xl font-mono bg-background"
+              className="h-12 text-sm rounded-xl font-mono bg-background"
             />
           </div>
 
@@ -182,15 +248,15 @@ export default function MobileEmployeeForm({ employee, onBack }: MobileEmployeeF
             value={formData.qidPhoto}
             onChange={(url) => handleChange('qidPhoto', url)}
             folder="employee_qids"
-            placeholderText="Upload Qatar ID photo to Cloudinary"
+            placeholderText="Upload Qatar ID scan or photo"
           />
         </div>
 
         {/* Passport Details */}
-        <div className="p-3.5 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 border border-emerald-500/20 rounded-2xl space-y-3 shadow-xs">
+        <div className="p-4 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 border border-emerald-500/20 rounded-2xl space-y-3.5 shadow-xs">
           <div className="flex items-center gap-2 text-xs font-bold text-emerald-700 dark:text-emerald-400">
-            <BookOpen className="w-4 h-4" />
-            <span>Passport Documentation</span>
+            <BookOpen className="w-4 h-4 shrink-0" />
+            <span>Passport Document Details</span>
           </div>
 
           <div className="space-y-1.5">
@@ -198,18 +264,18 @@ export default function MobileEmployeeForm({ employee, onBack }: MobileEmployeeF
             <Input 
               value={formData.passportNumber}
               onChange={(e) => handleChange('passportNumber', e.target.value)}
-              className="h-11 text-sm rounded-xl font-mono bg-background"
-              placeholder="USA-99881122"
+              className="h-12 text-sm rounded-xl font-mono bg-background"
+              placeholder="e.g. N1234567"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold text-muted-foreground">PASSPORT EXPIRE DATE</label>
+            <label className="text-[11px] font-semibold text-muted-foreground">PASSPORT EXPIRY DATE</label>
             <Input 
               type="date"
               value={formData.passportExpiry}
               onChange={(e) => handleChange('passportExpiry', e.target.value)}
-              className="h-11 text-sm rounded-xl font-mono bg-background"
+              className="h-12 text-sm rounded-xl font-mono bg-background"
             />
           </div>
 
@@ -218,32 +284,33 @@ export default function MobileEmployeeForm({ employee, onBack }: MobileEmployeeF
             value={formData.passportPhoto}
             onChange={(url) => handleChange('passportPhoto', url)}
             folder="employee_passports"
-            placeholderText="Upload Passport photo to Cloudinary"
+            placeholderText="Upload Passport scan or photo"
           />
         </div>
 
         {/* Notes */}
-        <div className="p-3.5 bg-card border rounded-2xl space-y-1.5 shadow-xs">
-          <label className="text-xs font-semibold text-foreground">Operational Notes</label>
+        <div className="p-4 bg-card border rounded-2xl space-y-2 shadow-xs">
+          <label className="text-xs font-bold text-foreground">Operational Notes / Designation</label>
           <Input 
             value={formData.notes}
             onChange={(e) => handleChange('notes', e.target.value)}
-            className="h-11 text-sm rounded-xl"
-            placeholder="Designation, visa notes..."
+            className="h-12 text-sm rounded-xl bg-background"
+            placeholder="Designation, visa notes, profession..."
           />
         </div>
       </form>
 
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t pb-[env(safe-area-inset-bottom,16px)]">
+      {/* Bottom Sticky Submit Button */}
+      <footer className="fixed bottom-0 left-0 right-0 p-4 bg-card/95 backdrop-blur-lg border-t border-border/80 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-xl z-40">
         <Button 
           type="submit" 
           onClick={handleSubmit}
           disabled={isSaving}
-          className="w-full h-12 text-base font-bold rounded-xl bg-primary text-primary-foreground"
+          className="w-full h-12 text-base font-bold rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/20"
         >
-          {isSaving ? 'Saving...' : employee ? 'Update Personnel Details' : 'Save Personnel Record'}
+          {isSaving ? 'Saving...' : employee ? 'Update Employee Details' : 'Save Employee'}
         </Button>
-      </div>
+      </footer>
     </div>
   );
 }

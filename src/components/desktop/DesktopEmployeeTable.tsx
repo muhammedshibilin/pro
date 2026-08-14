@@ -6,23 +6,33 @@ import { useDeleteEmployee } from '@/hooks/use-employees';
 import { DesktopFilterPanel } from './DesktopFilterPanel';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
-import { Plus, Eye, Edit3, Trash2, Phone, Globe, CreditCard, BookOpen, Cloud } from 'lucide-react';
+import { Plus, Eye, Edit3, Trash2, Phone, Globe, CreditCard, BookOpen, Building2, Briefcase } from 'lucide-react';
 import { formatDate, getDaysRemaining } from '@/lib/utils';
+import { 
+  calculateEmployeeQidStatus, 
+  EMPLOYEE_STATUS_META 
+} from '@/lib/status-calculator';
 import { EmployeeFormModal } from '@/components/employee-form-modal';
 import { DeleteConfirmModal } from '@/components/delete-confirm-modal';
 import { Employee } from '@/types';
+import { cn } from '@/lib/utils';
 
 interface DesktopEmployeeTableProps {
   appData: AppData;
 }
 
 export function DesktopEmployeeTable({ appData }: DesktopEmployeeTableProps) {
-  const { employees, companies } = appData;
+  const { 
+    employees, 
+    companies, 
+    employeeCounts, 
+    employeeStatusFilter, 
+    setEmployeeStatusFilter 
+  } = appData;
   const deleteMutation = useDeleteEmployee();
   
   const [search, setSearch] = useState('');
   const [companyFilter, setCompanyFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
   
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [editingEmp, setEditingEmp] = useState<Employee | undefined>(undefined);
@@ -61,18 +71,17 @@ export function DesktopEmployeeTable({ appData }: DesktopEmployeeTableProps) {
       (e.phone || '').toLowerCase().includes(q) ||
       (e.nativeRelativePhone || '').toLowerCase().includes(q) ||
       (e.qidNumber || '').toLowerCase().includes(q) ||
-      (e.passportNumber || '').toLowerCase().includes(q);
+      (e.passportNumber || '').toLowerCase().includes(q) ||
+      (e.company?.companyName || '').toLowerCase().includes(q) ||
+      (e.currentWorkingCompany?.companyName || '').toLowerCase().includes(q);
 
     if (!matchesSearch) return false;
-    if (companyFilter && e.companyId !== companyFilter) return false;
+    if (companyFilter && e.companyId !== companyFilter && e.currentWorkingCompanyId !== companyFilter) return false;
     
-    const qidDays = getDaysRemaining(e.qidExpiry);
-    const passDays = e.passportExpiry ? getDaysRemaining(e.passportExpiry) : 999;
-    const minDays = Math.min(qidDays, passDays);
-
-    if (statusFilter === 'expired' && minDays >= 0) return false;
-    if (statusFilter === 'expiring' && (minDays < 0 || minDays > 30)) return false;
-    if (statusFilter === 'active' && minDays <= 30) return false;
+    const qidStatus = calculateEmployeeQidStatus(e.qidExpiry);
+    if (employeeStatusFilter && employeeStatusFilter !== 'ALL' && qidStatus !== employeeStatusFilter) {
+      return false;
+    }
     
     return true;
   });
@@ -86,8 +95,33 @@ export function DesktopEmployeeTable({ appData }: DesktopEmployeeTableProps) {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
-  const renderExpiryBadge = (dateString?: string | null, label?: string) => {
-    if (!dateString) return <span className="text-muted-foreground italic text-[10px]">No {label || 'Date'}</span>;
+  const renderQidBadge = (dateString?: string | null) => {
+    if (!dateString) return <span className="text-muted-foreground italic text-[10px]">No QID Date</span>;
+    const status = calculateEmployeeQidStatus(dateString);
+    const meta = EMPLOYEE_STATUS_META[status];
+    const days = getDaysRemaining(dateString);
+
+    let detailText = '';
+    if (status === 'SAFE') {
+      detailText = `Valid (${formatDate(dateString)})`;
+    } else {
+      detailText = `${meta.shortLabel} (${Math.abs(days)}d ago)`;
+    }
+
+    return (
+      <span className={cn(
+        "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold border whitespace-nowrap",
+        meta.badgeBg,
+        meta.badgeText,
+        meta.badgeBorder
+      )}>
+        {detailText}
+      </span>
+    );
+  };
+
+  const renderPassportBadge = (dateString?: string | null) => {
+    if (!dateString) return <span className="text-muted-foreground italic text-[10px]">No Passport Date</span>;
     const days = getDaysRemaining(dateString);
     if (days < 0) {
       return (
@@ -109,6 +143,15 @@ export function DesktopEmployeeTable({ appData }: DesktopEmployeeTableProps) {
       </span>
     );
   };
+
+  const filterChips: { id: string; label: string; count: number; colorClass: string }[] = [
+    { id: 'ALL', label: 'All Staff', count: employees.length, colorClass: 'bg-muted text-foreground' },
+    { id: 'SAFE', label: '🟢 Safe', count: employeeCounts.safe, colorClass: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30' },
+    { id: 'MONTH_1_EXPIRED', label: '⚫ 1st Mo Expired', count: employeeCounts.month1Expired, colorClass: 'bg-zinc-900 text-zinc-100 border-zinc-700' },
+    { id: 'MONTH_2_EXPIRED', label: '🟡 2nd Mo Expired', count: employeeCounts.month2Expired, colorClass: 'bg-amber-500/20 text-amber-900 dark:text-amber-300 border-amber-500/40 font-bold' },
+    { id: 'MONTH_3_EXPIRED', label: '🔴 3rd Mo Expired', count: employeeCounts.month3Expired, colorClass: 'bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/40 font-bold' },
+    { id: 'FULLY_EXPIRED', label: '⚪ Fully Expired', count: employeeCounts.fullyExpired, colorClass: 'bg-slate-500/15 text-slate-700 dark:text-slate-300' },
+  ];
   
   return (
     <div className="flex flex-col w-full animate-fade-in space-y-6">
@@ -122,14 +165,37 @@ export function DesktopEmployeeTable({ appData }: DesktopEmployeeTableProps) {
             </span>
           </div>
           <p className="text-muted-foreground text-xs mt-1">
-            Personnel registry tracking direct contacts, native relative numbers, Qatar ID expiries, and Passport statuses.
+            Employee registry with Role assignments, Registered & Working company dual-tracking, and 4-Tier QID calendar-month radar.
           </p>
         </div>
 
         <Button onClick={handleAdd} className="rounded-xl shadow-md shadow-primary/20 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold h-10 px-4">
           <Plus className="h-4 w-4 mr-2" />
-          Add Personnel
+          Add Employee
         </Button>
+      </div>
+
+      {/* 4-Tier Status Filter Quick Chips */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {filterChips.map((chip) => {
+          const isSelected = (employeeStatusFilter || 'ALL') === chip.id;
+          return (
+            <button
+              key={chip.id}
+              onClick={() => setEmployeeStatusFilter(chip.id)}
+              className={cn(
+                "px-3 py-1.5 rounded-xl text-xs font-medium border transition-all cursor-pointer flex items-center gap-2",
+                chip.colorClass,
+                isSelected ? "ring-2 ring-primary font-bold shadow-xs scale-105" : "opacity-80 hover:opacity-100"
+              )}
+            >
+              <span>{chip.label}</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-black/10 text-[10px] font-mono">
+                {chip.count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       <DesktopFilterPanel searchValue={search} onSearchChange={setSearch}>
@@ -139,9 +205,16 @@ export function DesktopEmployeeTable({ appData }: DesktopEmployeeTableProps) {
           onChange={(e) => setCompanyFilter(e.target.value)} 
         />
         <Select 
-          options={[{value: '', label: 'All Statuses'}, {value: 'active', label: 'Compliant'}, {value: 'expiring', label: 'Expiring Soon'}, {value: 'expired', label: 'Expired'}]} 
-          value={statusFilter} 
-          onChange={(e) => setStatusFilter(e.target.value)} 
+          options={[
+            {value: 'ALL', label: 'All QID Statuses'}, 
+            {value: 'SAFE', label: '🟢 Safe / Before Expiry'}, 
+            {value: 'MONTH_1_EXPIRED', label: '⚫ 1st Month Expired (0–1 Mo)'}, 
+            {value: 'MONTH_2_EXPIRED', label: '🟡 2nd Month Expired (1–2 Mos)'},
+            {value: 'MONTH_3_EXPIRED', label: '🔴 3rd Month Expired (2–3 Mos)'},
+            {value: 'FULLY_EXPIRED', label: '⚪ Fully Expired (>3 Mos)'}
+          ]} 
+          value={employeeStatusFilter || 'ALL'} 
+          onChange={(e) => setEmployeeStatusFilter(e.target.value)} 
         />
       </DesktopFilterPanel>
 
@@ -169,17 +242,19 @@ export function DesktopEmployeeTable({ appData }: DesktopEmployeeTableProps) {
                     className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5" 
                   />
                 </th>
-                <th className="px-4 py-3.5">Personnel Name</th>
-                <th className="px-4 py-3.5">Sponsoring Entity</th>
+                <th className="px-4 py-3.5">Employee & Role</th>
+                <th className="px-4 py-3.5">Company Assignments</th>
                 <th className="px-4 py-3.5">Contact Numbers</th>
-                <th className="px-4 py-3.5">Qatar ID (QID)</th>
+                <th className="px-4 py-3.5">Qatar ID (QID Status)</th>
                 <th className="px-4 py-3.5">Passport Details</th>
                 <th className="px-4 py-3.5 text-right pr-6">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
               {filtered.map(emp => {
-                const company = companies.find(c => c.id === emp.companyId);
+                const regCompany = companies.find(c => c.id === emp.companyId) || emp.company;
+                const workCompany = emp.currentWorkingCompanyId ? (companies.find(c => c.id === emp.currentWorkingCompanyId) || emp.currentWorkingCompany) : null;
+                const isOwner = emp.role?.toUpperCase() === 'OWNER';
 
                 return (
                   <tr key={emp.id} className="hover:bg-muted/40 transition-colors group">
@@ -197,14 +272,36 @@ export function DesktopEmployeeTable({ appData }: DesktopEmployeeTableProps) {
                           {emp.employeeName.charAt(0).toUpperCase()}
                         </div>
                         <div className="flex flex-col">
-                          <span className="font-semibold text-xs text-foreground group-hover:text-primary transition-colors">{emp.employeeName}</span>
-                          <span className="text-[10px] text-muted-foreground">{emp.notes || 'Personnel'}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-xs text-foreground group-hover:text-primary transition-colors">{emp.employeeName}</span>
+                            <span className={cn(
+                              "px-1.5 py-0.2 rounded-md text-[9px] font-bold font-mono uppercase tracking-wider border",
+                              isOwner ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30" : "bg-muted text-muted-foreground border-border"
+                            )}>
+                              {isOwner ? 'Owner' : 'Employee'}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground">{emp.notes || 'Profile'}</span>
                         </div>
                       </div>
                     </td>
 
-                    <td className="px-4 py-3.5 text-muted-foreground font-medium">
-                      {company?.companyName || <span className="italic text-muted-foreground/70">Unassigned</span>}
+                    {/* Company Assignments: Registered & Working */}
+                    <td className="px-4 py-3.5">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-1.5 text-foreground font-medium">
+                          <Building2 className="w-3.5 h-3.5 text-primary shrink-0" />
+                          <span className="truncate max-w-[170px]" title={`Registered Sponsor: ${regCompany?.companyName || 'Unassigned'}`}>
+                            {regCompany?.companyName || <span className="italic text-muted-foreground/70">Unassigned</span>}
+                          </span>
+                        </div>
+                        {workCompany && workCompany.id !== regCompany?.id && (
+                          <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 text-[11px] font-medium" title={`Current Working: ${workCompany.companyName}`}>
+                            <Briefcase className="w-3 h-3 shrink-0" />
+                            <span className="truncate max-w-[170px]">Works at: <strong>{workCompany.companyName}</strong></span>
+                          </div>
+                        )}
+                      </div>
                     </td>
 
                     {/* Contact Numbers: Local & Native Relative */}
@@ -240,7 +337,7 @@ export function DesktopEmployeeTable({ appData }: DesktopEmployeeTableProps) {
                             </button>
                           )}
                         </div>
-                        <div>{renderExpiryBadge(emp.qidExpiry, 'QID')}</div>
+                        <div>{renderQidBadge(emp.qidExpiry)}</div>
                       </div>
                     </td>
 
@@ -261,7 +358,7 @@ export function DesktopEmployeeTable({ appData }: DesktopEmployeeTableProps) {
                             </button>
                           )}
                         </div>
-                        <div>{renderExpiryBadge(emp.passportExpiry, 'Passport')}</div>
+                        <div>{renderPassportBadge(emp.passportExpiry)}</div>
                       </div>
                     </td>
 
@@ -271,39 +368,44 @@ export function DesktopEmployeeTable({ appData }: DesktopEmployeeTableProps) {
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-8 w-8 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10" 
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground rounded-lg"
                           onClick={() => appData.handleOpenEmployeeDetails(emp.id)}
-                          title="View Details"
+                          title="View Full Profile"
                         >
-                          <Eye className="h-3.5 w-3.5" />
+                          <Eye className="h-4 w-4" />
                         </Button>
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-8 w-8 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10" 
+                          className="h-8 w-8 text-muted-foreground hover:text-primary rounded-lg"
                           onClick={() => handleEdit(emp)}
                           title="Edit Employee"
                         >
-                          <Edit3 className="h-3.5 w-3.5" />
+                          <Edit3 className="h-4 w-4" />
                         </Button>
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10" 
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive rounded-lg"
                           onClick={() => setDeletingId(emp.id)}
                           title="Delete Employee"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </td>
                   </tr>
                 );
               })}
+
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-muted-foreground text-xs">
-                    No employee records match the active filter criteria.
+                  <td colSpan={7} className="text-center py-12 text-muted-foreground">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <CreditCard className="h-8 w-8 text-muted-foreground/40" />
+                      <p className="font-semibold text-sm">No employees match your active filter criteria</p>
+                      <p className="text-xs">Try adjusting your search query or status filter.</p>
+                    </div>
                   </td>
                 </tr>
               )}
@@ -312,60 +414,35 @@ export function DesktopEmployeeTable({ appData }: DesktopEmployeeTableProps) {
         </div>
       </div>
 
-      {/* Cloudinary Photo Full Preview Modal */}
+      {/* Modals */}
+      <EmployeeFormModal 
+        employee={editingEmp} 
+        open={isFormOpen} 
+        onOpenChange={setIsFormOpen} 
+      />
+
+      <DeleteConfirmModal 
+        open={!!deletingId} 
+        onOpenChange={(open) => !open && setDeletingId(null)}
+        title="Delete Employee"
+        description="Are you sure you want to delete this employee? This action cannot be undone."
+        onConfirm={handleDeleteConfirm}
+        isLoading={deleteMutation.isPending}
+      />
+
+      {/* Full Photo Modal Viewer */}
       {viewingPhoto && (
-        <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
-          onClick={() => setViewingPhoto(null)}
-        >
-          <div className="relative max-w-2xl max-h-[85vh] bg-card rounded-2xl overflow-hidden shadow-2xl border p-4" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between pb-3 border-b mb-3">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-xs text-foreground">{viewingPhoto.title}</span>
-                {viewingPhoto.url.includes('cloudinary') && (
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">
-                    <Cloud className="h-2.5 w-2.5" /> Cloudinary CDN
-                  </span>
-                )}
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs"
-                onClick={() => setViewingPhoto(null)}
-              >
-                Close
-              </Button>
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setViewingPhoto(null)}>
+          <div className="bg-card border rounded-2xl max-w-2xl w-full p-4 space-y-3" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b pb-2">
+              <span className="font-bold text-sm truncate text-foreground">{viewingPhoto.title}</span>
+              <Button variant="ghost" size="sm" onClick={() => setViewingPhoto(null)}>Close</Button>
             </div>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={viewingPhoto.url}
-              alt={viewingPhoto.title}
-              className="max-h-[65vh] w-auto mx-auto object-contain rounded-xl shadow-md"
-            />
-            <div className="pt-3 text-center">
-              <a
-                href={viewingPhoto.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[11px] text-primary hover:underline font-mono"
-              >
-                Open Original Full Image ↗
-              </a>
-            </div>
+            <img src={viewingPhoto.url} alt={viewingPhoto.title} className="max-h-[70vh] w-auto mx-auto object-contain rounded-lg" />
           </div>
         </div>
       )}
-
-      <EmployeeFormModal open={isFormOpen} onOpenChange={setIsFormOpen} employee={editingEmp} />
-      <DeleteConfirmModal 
-        open={!!deletingId} 
-        onOpenChange={(open) => !open && setDeletingId(null)} 
-        title="Delete Employee(s)" 
-        description="Are you sure you want to delete the selected employee(s)? This action cannot be undone." 
-        isLoading={deleteMutation.isPending} 
-        onConfirm={handleDeleteConfirm} 
-      />
     </div>
   );
 }

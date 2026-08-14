@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { calculateExpiryStatus } from '@/lib/utils';
+import { calculateCompanyDocumentStatus } from '@/lib/status-calculator';
 
 // POST /api/documents/recalculate — Trigger expiry re-evaluation
 export async function POST() {
@@ -14,7 +14,7 @@ export async function POST() {
     const updated = docs.map((doc) => ({
       id: doc.id,
       documentNumber: doc.documentNumber,
-      status: calculateExpiryStatus(doc.expiryDate),
+      status: calculateCompanyDocumentStatus(doc.expiryDate),
     }));
 
     return NextResponse.json({

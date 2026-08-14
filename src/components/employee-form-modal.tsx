@@ -17,16 +17,18 @@ import {
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Select } from './ui/select';
-import { UserPlus, UserCheck, Phone, Globe, CreditCard, BookOpen } from 'lucide-react';
+import { UserPlus, UserCheck, Phone, Globe, CreditCard, BookOpen, Building2, Briefcase } from 'lucide-react';
 import { CloudinaryPhotoUpload } from './cloudinary-photo-upload';
 
 const employeeSchema = z.object({
   employeeName: z
     .string()
     .trim()
-    .min(2, 'Personnel full name is required (min 2 characters)')
+    .min(2, 'Employee full name is required (min 2 characters)')
     .max(100, 'Name cannot exceed 100 characters'),
-  companyId: z.string().min(1, 'Please select a sponsoring company'),
+  role: z.enum(['EMPLOYEE', 'OWNER']),
+  companyId: z.string().min(1, 'Please select a registered sponsoring company'),
+  currentWorkingCompanyId: z.string().optional().or(z.literal('')),
   phone: z.string().trim().max(40).optional().or(z.literal('')),
   nativeRelativePhone: z.string().trim().max(80).optional().or(z.literal('')),
   qidNumber: z
@@ -58,19 +60,23 @@ export function EmployeeFormModal({ employee, open, onOpenChange }: EmployeeForm
   const updateEmployee = useUpdateEmployee();
   const { data: companies = [] } = useCompanies();
   const isEdit = !!employee;
+  const [serverError, setServerError] = React.useState<string | null>(null);
 
   const {
     register,
     handleSubmit,
     reset,
     setValue,
+    setError,
     watch,
     formState: { errors, isSubmitting },
   } = useForm<EmployeeFormValues>({
     resolver: zodResolver(employeeSchema),
     defaultValues: {
       employeeName: '',
+      role: 'EMPLOYEE',
       companyId: '',
+      currentWorkingCompanyId: '',
       phone: '',
       nativeRelativePhone: '',
       qidNumber: '',
@@ -98,10 +104,13 @@ export function EmployeeFormModal({ employee, open, onOpenChange }: EmployeeForm
 
   useEffect(() => {
     if (open) {
+      setServerError(null);
       if (employee) {
         reset({
           employeeName: employee.employeeName || '',
+          role: (employee.role?.toUpperCase() === 'OWNER' ? 'OWNER' : 'EMPLOYEE'),
           companyId: employee.companyId || '',
+          currentWorkingCompanyId: employee.currentWorkingCompanyId || '',
           phone: employee.phone || '',
           nativeRelativePhone: employee.nativeRelativePhone || '',
           qidNumber: employee.qidNumber || '',
@@ -116,7 +125,9 @@ export function EmployeeFormModal({ employee, open, onOpenChange }: EmployeeForm
       } else {
         reset({
           employeeName: '',
+          role: 'EMPLOYEE',
           companyId: companies[0]?.id || '',
+          currentWorkingCompanyId: '',
           phone: '',
           nativeRelativePhone: '',
           qidNumber: '',
@@ -133,18 +144,37 @@ export function EmployeeFormModal({ employee, open, onOpenChange }: EmployeeForm
   }, [employee, open, reset, companies]);
 
   const onSubmit = async (data: EmployeeFormValues) => {
+    setServerError(null);
     try {
+      const payload = {
+        ...data,
+        currentWorkingCompanyId: data.currentWorkingCompanyId || null,
+      };
+
       if (isEdit && employee) {
-        await updateEmployee.mutateAsync({ id: employee.id, data });
+        await updateEmployee.mutateAsync({ id: employee.id, data: payload });
       } else {
-        await createEmployee.mutateAsync(data);
+        await createEmployee.mutateAsync(payload as unknown as Parameters<typeof createEmployee.mutateAsync>[0]);
       }
       onOpenChange(false);
       reset();
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error saving employee:', err);
+      const apiErr = err as { response?: { data?: { message?: string } }; message?: string };
+      const msg = apiErr?.response?.data?.message || apiErr?.message || 'Failed to save employee record';
+      setServerError(msg);
+      if (msg.toLowerCase().includes('qid')) {
+        setError('qidNumber', { type: 'manual', message: msg });
+      } else if (msg.toLowerCase().includes('passport')) {
+        setError('passportNumber', { type: 'manual', message: msg });
+      }
     }
   };
+
+  const roleOptions = [
+    { value: 'EMPLOYEE', label: 'Employee' },
+    { value: 'OWNER', label: 'Owner / Executive' },
+  ];
 
   const statusOptions = [
     { value: 'Active', label: 'Active (Compliant)' },
@@ -152,8 +182,13 @@ export function EmployeeFormModal({ employee, open, onOpenChange }: EmployeeForm
     { value: 'Terminated', label: 'Terminated' },
   ];
 
-  const companyOptions = [
-    { value: '', label: 'Select Sponsor Entity' },
+  const registeredCompanyOptions = [
+    { value: '', label: 'Select Registered Company *' },
+    ...companies.map((c) => ({ value: c.id, label: c.companyName })),
+  ];
+
+  const workingCompanyOptions = [
+    { value: '', label: 'Same as Registered Company (Default)' },
     ...companies.map((c) => ({ value: c.id, label: c.companyName })),
   ];
 
@@ -163,29 +198,57 @@ export function EmployeeFormModal({ employee, open, onOpenChange }: EmployeeForm
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base font-bold">
             <UserPlus className="h-5 w-5 text-primary" />
-            {isEdit ? 'Edit Personnel Profile & Documents' : 'Register Personnel Profile'}
+            {isEdit ? 'Edit Employee Profile & Documents' : 'Register New Employee'}
           </DialogTitle>
         </DialogHeader>
 
+        {serverError && (
+          <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold flex items-center gap-2">
+            <span>⚠️</span>
+            <span>{serverError}</span>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-2">
-          {/* Section 1: Basic Information */}
+          {/* Section 1: Basic Information & Role */}
           <div className="p-3.5 bg-muted/20 border rounded-xl space-y-3">
             <div className="flex items-center gap-2 text-xs font-bold text-foreground">
               <UserCheck className="h-4 w-4 text-primary" />
-              <span>Primary Personnel Details</span>
+              <span>Primary Profile & Role</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-muted-foreground">PERSONNEL FULL NAME *</label>
-                <Input placeholder="Sarah Connor" {...register('employeeName')} className="bg-background text-xs font-semibold" />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="sm:col-span-2 space-y-1">
+                <label className="text-[11px] font-semibold text-muted-foreground">EMPLOYEE FULL NAME *</label>
+                <Input placeholder="e.g. Ahmed Ali" {...register('employeeName')} className="bg-background text-xs font-semibold" />
                 {errors.employeeName && <p className="text-[10px] text-destructive">{errors.employeeName.message}</p>}
               </div>
 
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-muted-foreground">SPONSORING COMPANY *</label>
-                <Select options={companyOptions} {...register('companyId')} className="bg-background text-xs" />
+                <label className="text-[11px] font-semibold text-muted-foreground">ROLE *</label>
+                <Select options={roleOptions} {...register('role')} className="bg-background text-xs font-bold" />
+                {errors.role && <p className="text-[10px] text-destructive">{errors.role.message}</p>}
+              </div>
+            </div>
+
+            {/* Sponsoring / Registered Company & Current Working Company */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-border/40">
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5 text-primary" />
+                  <span>REGISTERED COMPANY (SPONSOR) *</span>
+                </label>
+                <Select options={registeredCompanyOptions} {...register('companyId')} className="bg-background text-xs" />
                 {errors.companyId && <p className="text-[10px] text-destructive">{errors.companyId.message}</p>}
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
+                  <Briefcase className="w-3.5 h-3.5 text-blue-600" />
+                  <span>CURRENT WORKING COMPANY (OPTIONAL)</span>
+                </label>
+                <Select options={workingCompanyOptions} {...register('currentWorkingCompanyId')} className="bg-background text-xs" />
+                <p className="text-[10px] text-muted-foreground">Leave default if working at registered sponsor</p>
               </div>
             </div>
 
@@ -228,7 +291,7 @@ export function EmployeeFormModal({ employee, open, onOpenChange }: EmployeeForm
                 </label>
                 <Input
                   type="tel"
-                  placeholder="+91 98470 12345 (Father / Spouse)"
+                  placeholder="+91 98470 12345 (Father / Relative)"
                   {...register('nativeRelativePhone')}
                   className="bg-background font-mono text-xs"
                 />
@@ -286,7 +349,7 @@ export function EmployeeFormModal({ employee, open, onOpenChange }: EmployeeForm
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="text-[11px] font-semibold text-muted-foreground">PASSPORT NUMBER</label>
-                <Input placeholder="USA-99881122" {...register('passportNumber')} className="bg-background font-mono text-xs" />
+                <Input placeholder="N12345678" {...register('passportNumber')} className="bg-background font-mono text-xs" />
               </div>
 
               <div className="space-y-1">
@@ -307,10 +370,10 @@ export function EmployeeFormModal({ employee, open, onOpenChange }: EmployeeForm
           {/* Section 5: Notes */}
           <div className="p-3 bg-muted/20 border rounded-xl space-y-1">
             <label className="text-[11px] font-semibold text-muted-foreground">Operational Notes / Designation</label>
-            <Input placeholder="Designation, visa profession, native city..." {...register('notes')} className="bg-background text-xs" />
+            <Input placeholder="Designation, visa profession, assignment notes..." {...register('notes')} className="bg-background text-xs" />
           </div>
 
-          <DialogFooter className="pt-2">
+          <DialogFooter className="pt-2 flex flex-col-reverse sm:flex-row gap-2.5">
             <Button
               type="button"
               variant="outline"
@@ -319,11 +382,16 @@ export function EmployeeFormModal({ employee, open, onOpenChange }: EmployeeForm
                 onOpenChange(false);
               }}
               disabled={isSubmitting}
+              className="w-full sm:w-auto h-11 sm:h-9 text-xs"
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting} className="bg-primary text-primary-foreground font-semibold">
-              {isSubmitting ? 'Saving...' : isEdit ? 'Update Personnel Details' : 'Save Personnel Record'}
+            <Button 
+              type="submit" 
+              disabled={isSubmitting} 
+              className="w-full sm:w-auto h-11 sm:h-9 bg-primary text-primary-foreground font-semibold text-xs shadow-xs"
+            >
+              {isSubmitting ? 'Saving...' : isEdit ? 'Update Employee Details' : 'Save Employee'}
             </Button>
           </DialogFooter>
         </form>

@@ -42,12 +42,13 @@ export function DesktopAlertList({ appData }: DesktopAlertListProps) {
       <DesktopFilterPanel searchValue={appData.alertSearch} onSearchChange={appData.setAlertSearch}>
         <Select 
           options={[
-            { value: 'all', label: 'All Categories' },
-            { value: 'expired', label: 'Critical Expired' },
-            { value: 'today', label: 'Expiring Today' },
-            { value: '7days', label: '7 Days Horizon' },
-            { value: '15days', label: '15 Days Horizon' },
-            { value: '30days', label: '30 Days Horizon' },
+            { value: '', label: 'All Categories' },
+            { value: '1st Month Expired', label: '⚫ 1st Month Expired (0–1 Mo)' },
+            { value: '2nd Month Expired', label: '🟡 2nd Month Expired (1–2 Mos)' },
+            { value: '3rd Month Expired', label: '🔴 3rd Month Expired (2–3 Mos)' },
+            { value: 'Danger', label: '🔴 Danger (<1 Mo / Expired)' },
+            { value: 'Warning', label: '🟡 Warning (2 Mos Before Expiry)' },
+            { value: 'Fully Expired', label: '⚪ Outside Tracking (>3 Mos)' },
           ]}
           value={appData.alertCategoryFilter}
           onChange={(e) => appData.setAlertCategoryFilter(e.target.value)}

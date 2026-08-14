@@ -1,13 +1,40 @@
+import { EmployeeQidStatus, CompanyDocumentStatus } from '@/lib/status-calculator';
+
+export type { EmployeeQidStatus, CompanyDocumentStatus };
+
+export type EmployeeRole = 'OWNER' | 'EMPLOYEE';
+
+export interface Person {
+  id: string;
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  qidNumber?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  companies?: Company[];
+  employees?: Employee[];
+  _count?: {
+    companies?: number;
+    employees?: number;
+  };
+}
+
 export interface Company {
   id: string;
   companyName: string;
+  ownerId?: string | null;
+  owner?: Person | null;
+  ownerName?: string | null;
   crNumber?: string | null;
   crExpiry?: string | null;
   crPhoto?: string | null;
   licenseNumber?: string | null;
   licenseExpiry?: string | null;
   licensePhoto?: string | null;
-  ownerName?: string | null;
+  computerCardNumber?: string | null;
+  computerCardPhoto?: string | null;
   phone?: string | null;
   email?: string | null;
   notes?: string | null;
@@ -23,21 +50,39 @@ export interface Company {
 export interface Employee {
   id: string;
   employeeName: string;
-  companyId: string;
-  company?: Company;
-  phone?: string | null;                  // Local / Qatar Contact Phone
-  nativeRelativePhone?: string | null;    // Native Country Relative Contact Phone
-  qidNumber: string;                     // Qatar ID (QID)
-  qidExpiry: string;                     // QID Expiry Date
-  qidPhoto?: string | null;              // QID Document Photo URL (Cloudinary)
-  passportNumber?: string | null;        // Passport Number
-  passportExpiry?: string | null;        // Passport Expiry Date
-  passportPhoto?: string | null;         // Passport Document Photo URL (Cloudinary)
-  employeeCode?: string | null;          // Optional legacy employee code
+  role: EmployeeRole | string;           // "OWNER" | "EMPLOYEE"
+  personId?: string | null;
+  person?: Person | null;
+  companyId: string;                     // Registered Company ID
+  company?: Company;                     // Registered Company
+  currentWorkingCompanyId?: string | null; // Current Working Company ID (can be different from Registered Company)
+  currentWorkingCompany?: Company | null;  // Current Working Company
+  phone?: string | null;                 // Local / Qatar Contact Phone
+  nativeRelativePhone?: string | null;   // Native Country Relative Contact Phone
+  qidNumber: string;                    // Qatar ID (QID)
+  qidExpiry: string;                    // QID Expiry Date
+  qidPhoto?: string | null;             // QID Document Photo URL (Cloudinary)
+  passportNumber?: string | null;       // Passport Number
+  passportExpiry?: string | null;       // Passport Expiry Date
+  passportPhoto?: string | null;        // Passport Document Photo URL (Cloudinary)
+  employeeCode?: string | null;         // Optional legacy employee code
   notes?: string | null;
   status?: string;
+  qidStatus?: EmployeeQidStatus;
   createdAt: string;
   updatedAt: string;
+  assignmentHistory?: CompanyAssignmentHistory[];
+}
+
+export interface CompanyAssignmentHistory {
+  id: string;
+  employeeId: string;
+  companyId: string;
+  company?: Company;
+  startDate: string;
+  endDate?: string | null;
+  notes?: string | null;
+  createdAt: string;
 }
 
 export interface Document {
@@ -49,16 +94,33 @@ export interface Document {
   expiryDate: string;
   attachment?: string | null;
   notes?: string | null;
-  status?: string; // calculated on-the-fly
+  status?: CompanyDocumentStatus | string; // calculated on-the-fly via centralized status engine
   createdAt: string;
   updatedAt: string;
 }
 
+export type CompanyDocument = Document;
+
+export interface EmployeeStatusCounts {
+  safe: number;
+  month1Expired: number;
+  month2Expired: number;
+  month3Expired: number;
+  fullyExpired: number;
+}
+
+export interface CompanyStatusCounts {
+  safe: number;
+  warning: number;
+  danger: number;
+}
+
 export interface DashboardStats {
-  total: number;
-  active: number;
-  expired: number;
-  expiringSoon: number;
+  totalCompanies: number;
+  totalEmployees: number;
+  totalDocuments: number;
+  employee: EmployeeStatusCounts;
+  company: CompanyStatusCounts;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

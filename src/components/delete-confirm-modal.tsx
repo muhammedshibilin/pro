@@ -50,13 +50,13 @@ export function DeleteConfirmModal({
           </DialogDescription>
         </DialogHeader>
 
-        <DialogFooter className="gap-2 sm:gap-0 pt-3">
+        <DialogFooter className="gap-2.5 pt-3 flex flex-col-reverse sm:flex-row sm:justify-end">
           <Button
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={isLoading}
-            className="text-xs"
+            className="text-xs h-11 sm:h-9 w-full sm:w-auto"
           >
             Cancel
           </Button>
@@ -65,7 +65,7 @@ export function DeleteConfirmModal({
             variant="destructive"
             onClick={handleConfirm}
             disabled={isLoading}
-            className="gap-1.5 text-xs"
+            className="gap-1.5 text-xs h-11 sm:h-9 w-full sm:w-auto font-semibold shadow-xs"
           >
             {isLoading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             <span>{isLoading ? 'Deleting...' : 'Delete Permanently'}</span>

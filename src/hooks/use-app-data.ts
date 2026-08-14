@@ -5,12 +5,28 @@ import { useDocuments, useRecalculateDocuments } from '@/hooks/use-documents';
 import { useEmployees } from '@/hooks/use-employees';
 import { useCompanies } from '@/hooks/use-companies';
 import { getDaysRemaining } from '@/lib/utils';
-import { Document, Employee, Company } from '@/types';
+import { 
+  calculateEmployeeQidStatus, 
+  calculateCompanyDocumentStatus 
+} from '@/lib/status-calculator';
+import { 
+  Document, 
+  Employee, 
+  Company, 
+  EmployeeStatusCounts, 
+  CompanyStatusCounts 
+} from '@/types';
 import { NotificationService } from '@/lib/notification-service';
 
 // ─── Alert Item type (shared across desktop and mobile) ──────────────────────
 
-export type AlertCategory = 'Expired' | 'Today' | '7 Days' | '15 Days' | '30 Days';
+export type AlertCategory = 
+  | '1st Month Expired' 
+  | '2nd Month Expired' 
+  | '3rd Month Expired' 
+  | 'Fully Expired'
+  | 'Danger'
+  | 'Warning';
 
 export interface AlertItem {
   id: string;
@@ -22,6 +38,7 @@ export interface AlertItem {
   entityType: 'employee' | 'document';
   entityId: string;
   category: AlertCategory;
+  statusCode: string;
   isRead: boolean;
 }
 
@@ -58,8 +75,16 @@ export interface AppData {
   activeView: AppView;
   setActiveView: (view: AppView) => void;
 
-  // Dashboard counts
+  // Status counts (Source of Truth)
+  employeeCounts: EmployeeStatusCounts;
+  companyCounts: CompanyStatusCounts;
   counts: DashboardCounts;
+
+  // Status Filtering
+  employeeStatusFilter: string;
+  setEmployeeStatusFilter: (v: string) => void;
+  companyStatusFilter: string;
+  setCompanyStatusFilter: (v: string) => void;
 
   // Alerts
   allAlerts: AlertItem[];
@@ -110,22 +135,36 @@ export interface AppData {
   handleCardClick: (targetView: 'companies' | 'employees' | 'alerts') => void;
 }
 
-/**
- * useAppData — Shared application state and business logic hook.
- *
- * Consumed by both DesktopApp and MobileApp to avoid code duplication.
- * All data fetching, alert computation, modal state, and navigation
- * logic lives here.
- */
 export function useAppData(): AppData {
   const [activeView, setActiveView] = useState<AppView>('dashboard');
 
   // ── Data fetching ──────────────────────────────────────────────────────────
-  const { data: companies = [], isLoading: companiesLoading } = useCompanies();
-  const { data: employees = [], isLoading: employeesLoading } = useEmployees();
-  const { data: documents = [], isLoading: docsLoading } = useDocuments();
+  const { data: rawCompanies = [], isLoading: companiesLoading } = useCompanies();
+  const { data: rawEmployees = [], isLoading: employeesLoading } = useEmployees();
+  const { data: rawDocuments = [], isLoading: docsLoading } = useDocuments();
   const recalculateDocs = useRecalculateDocuments();
   const loading = companiesLoading || employeesLoading || docsLoading;
+
+  // Augment entities with dynamic status calculations from centralized calculator
+  const employees: Employee[] = useMemo(() => {
+    return rawEmployees.map((emp) => ({
+      ...emp,
+      qidStatus: calculateEmployeeQidStatus(emp.qidExpiry),
+    }));
+  }, [rawEmployees]);
+
+  const documents: Document[] = useMemo(() => {
+    return rawDocuments.map((doc) => ({
+      ...doc,
+      status: calculateCompanyDocumentStatus(doc.expiryDate),
+    }));
+  }, [rawDocuments]);
+
+  const companies: Company[] = rawCompanies;
+
+  // ── Status Filters ─────────────────────────────────────────────────────────
+  const [employeeStatusFilter, setEmployeeStatusFilter] = useState<string>('ALL');
+  const [companyStatusFilter, setCompanyStatusFilter] = useState<string>('ALL');
 
   // ── Document form modal ────────────────────────────────────────────────────
   const [isDocFormOpen, setIsDocFormOpen] = useState(false);
@@ -172,101 +211,124 @@ export function useAppData(): AppData {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // ── Status Counts Calculations (Source of Truth) ───────────────────────────
+  const employeeCounts: EmployeeStatusCounts = useMemo(() => {
+    let safe = 0;
+    let month1Expired = 0;
+    let month2Expired = 0;
+    let month3Expired = 0;
+    let fullyExpired = 0;
+
+    employees.forEach((emp) => {
+      const status = calculateEmployeeQidStatus(emp.qidExpiry);
+      if (status === 'SAFE') safe++;
+      else if (status === 'MONTH_1_EXPIRED') month1Expired++;
+      else if (status === 'MONTH_2_EXPIRED') month2Expired++;
+      else if (status === 'MONTH_3_EXPIRED') month3Expired++;
+      else if (status === 'FULLY_EXPIRED') fullyExpired++;
+    });
+
+    return { safe, month1Expired, month2Expired, month3Expired, fullyExpired };
+  }, [employees]);
+
+  const companyCounts: CompanyStatusCounts = useMemo(() => {
+    let safe = 0;
+    let warning = 0;
+    let danger = 0;
+
+    // Evaluate company documents (CR, License, Computer Card, uploaded docs)
+    documents.forEach((doc) => {
+      const s = calculateCompanyDocumentStatus(doc.expiryDate);
+      if (s === 'SAFE') safe++;
+      else if (s === 'WARNING') warning++;
+      else if (s === 'DANGER') danger++;
+    });
+
+    companies.forEach((comp) => {
+      if (comp.crExpiry) {
+        const s = calculateCompanyDocumentStatus(comp.crExpiry);
+        if (s === 'SAFE') safe++;
+        else if (s === 'WARNING') warning++;
+        else if (s === 'DANGER') danger++;
+      }
+      if (comp.licenseExpiry) {
+        const s = calculateCompanyDocumentStatus(comp.licenseExpiry);
+        if (s === 'SAFE') safe++;
+        else if (s === 'WARNING') warning++;
+        else if (s === 'DANGER') danger++;
+      }
+      // Computer Card inherits licenseExpiry automatically
+      if (comp.computerCardNumber && comp.licenseExpiry) {
+        const s = calculateCompanyDocumentStatus(comp.licenseExpiry);
+        if (s === 'SAFE') safe++;
+        else if (s === 'WARNING') warning++;
+        else if (s === 'DANGER') danger++;
+      }
+    });
+
+    return { safe, warning, danger };
+  }, [documents, companies]);
+
+  // Backward-compatible counts overview
+  const counts: DashboardCounts = useMemo(() => {
+    const expiredCount = employeeCounts.month1Expired + employeeCounts.month2Expired + employeeCounts.month3Expired + employeeCounts.fullyExpired + companyCounts.danger;
+    let expiringToday = 0;
+    let expiring7Days = 0;
+    const expiring30Days = companyCounts.warning;
+
+    const checkDays = (dateStr: string) => {
+      const days = getDaysRemaining(dateStr);
+      if (days === 0) expiringToday++;
+      if (days > 0 && days <= 7) expiring7Days++;
+    };
+
+    documents.forEach((doc) => checkDays(doc.expiryDate));
+    employees.forEach((emp) => {
+      checkDays(emp.qidExpiry);
+      if (emp.passportExpiry) checkDays(emp.passportExpiry);
+    });
+
+    return { expiredCount, expiringToday, expiring7Days, expiring30Days };
+  }, [employeeCounts, companyCounts, documents, employees]);
+
   // ── Compute alerts ─────────────────────────────────────────────────────────
   const allAlerts = useMemo(() => {
     const list: AlertItem[] = [];
 
-    // 1. Company Documents
-    documents.forEach((doc) => {
-      const days = getDaysRemaining(doc.expiryDate);
-      let category: AlertCategory | null = null;
-      if (days < 0) category = 'Expired';
-      else if (days === 0) category = 'Today';
-      else if (days <= 7) category = '7 Days';
-      else if (days <= 15) category = '15 Days';
-      else if (days <= 30) category = '30 Days';
-
-      if (category) {
-        list.push({
-          id: `doc-${doc.id}`,
-          title: doc.documentType,
-          companyName: doc.company?.companyName || 'Corporate Account',
-          documentType: doc.documentType,
-          expiryDate: doc.expiryDate,
-          daysRemaining: days,
-          entityType: 'document',
-          entityId: doc.companyId,
-          category,
-          isRead: readAlerts.includes(`doc-${doc.id}`),
-        });
-      }
-    });
-
-    // 2. Employee QID & Passport Expiries
+    // 1. Employee QID Expiry alerts (Only non-SAFE items generate compliance alerts)
     employees.forEach((emp) => {
-      // QID Expiry
-      const qidDays = getDaysRemaining(emp.qidExpiry);
-      let qidCategory: AlertCategory | null = null;
-      if (qidDays < 0) qidCategory = 'Expired';
-      else if (qidDays === 0) qidCategory = 'Today';
-      else if (qidDays <= 7) qidCategory = '7 Days';
-      else if (qidDays <= 15) qidCategory = '15 Days';
-      else if (qidDays <= 30) qidCategory = '30 Days';
+      const status = calculateEmployeeQidStatus(emp.qidExpiry);
+      const days = getDaysRemaining(emp.qidExpiry);
 
-      if (qidCategory) {
+      if (status !== 'SAFE') {
+        let category: AlertCategory = '1st Month Expired';
+        if (status === 'MONTH_1_EXPIRED') category = '1st Month Expired';
+        else if (status === 'MONTH_2_EXPIRED') category = '2nd Month Expired';
+        else if (status === 'MONTH_3_EXPIRED') category = '3rd Month Expired';
+        else if (status === 'FULLY_EXPIRED') category = 'Fully Expired';
+
         list.push({
           id: `emp-qid-${emp.id}`,
           title: `${emp.employeeName} (QID)`,
-          companyName: emp.company?.companyName || 'Sponsorship',
+          companyName: emp.company?.companyName || 'Corporate Sponsorship',
           documentType: 'Qatar ID (QID)',
           expiryDate: emp.qidExpiry,
-          daysRemaining: qidDays,
+          daysRemaining: days,
           entityType: 'employee',
           entityId: emp.id,
-          category: qidCategory,
+          category,
+          statusCode: status,
           isRead: readAlerts.includes(`emp-qid-${emp.id}`),
         });
       }
-
-      // Passport Expiry
-      if (emp.passportExpiry) {
-        const passDays = getDaysRemaining(emp.passportExpiry);
-        let passCategory: AlertCategory | null = null;
-        if (passDays < 0) passCategory = 'Expired';
-        else if (passDays === 0) passCategory = 'Today';
-        else if (passDays <= 7) passCategory = '7 Days';
-        else if (passDays <= 15) passCategory = '15 Days';
-        else if (passDays <= 30) passCategory = '30 Days';
-
-        if (passCategory) {
-          list.push({
-            id: `emp-pass-${emp.id}`,
-            title: `${emp.employeeName} (Passport)`,
-            companyName: emp.company?.companyName || 'Sponsorship',
-            documentType: 'Passport Document',
-            expiryDate: emp.passportExpiry,
-            daysRemaining: passDays,
-            entityType: 'employee',
-            entityId: emp.id,
-            category: passCategory,
-            isRead: readAlerts.includes(`emp-pass-${emp.id}`),
-          });
-        }
-      }
     });
 
-    // 3. Company CR & License Expiries
+    // 2. Company CR, License, & Computer Card Expiry alerts
     companies.forEach((comp) => {
       if (comp.crExpiry) {
+        const status = calculateCompanyDocumentStatus(comp.crExpiry);
         const days = getDaysRemaining(comp.crExpiry);
-        let category: AlertCategory | null = null;
-        if (days < 0) category = 'Expired';
-        else if (days === 0) category = 'Today';
-        else if (days <= 7) category = '7 Days';
-        else if (days <= 15) category = '15 Days';
-        else if (days <= 30) category = '30 Days';
-
-        if (category) {
+        if (status !== 'SAFE') {
           list.push({
             id: `comp-cr-${comp.id}`,
             title: `CR: ${comp.crNumber || comp.companyName}`,
@@ -276,22 +338,17 @@ export function useAppData(): AppData {
             daysRemaining: days,
             entityType: 'document',
             entityId: comp.id,
-            category,
+            category: status === 'DANGER' ? 'Danger' : 'Warning',
+            statusCode: status,
             isRead: readAlerts.includes(`comp-cr-${comp.id}`),
           });
         }
       }
 
       if (comp.licenseExpiry) {
+        const status = calculateCompanyDocumentStatus(comp.licenseExpiry);
         const days = getDaysRemaining(comp.licenseExpiry);
-        let category: AlertCategory | null = null;
-        if (days < 0) category = 'Expired';
-        else if (days === 0) category = 'Today';
-        else if (days <= 7) category = '7 Days';
-        else if (days <= 15) category = '15 Days';
-        else if (days <= 30) category = '30 Days';
-
-        if (category) {
+        if (status !== 'SAFE') {
           list.push({
             id: `comp-lic-${comp.id}`,
             title: `License: ${comp.licenseNumber || comp.companyName}`,
@@ -301,15 +358,57 @@ export function useAppData(): AppData {
             daysRemaining: days,
             entityType: 'document',
             entityId: comp.id,
-            category,
+            category: status === 'DANGER' ? 'Danger' : 'Warning',
+            statusCode: status,
             isRead: readAlerts.includes(`comp-lic-${comp.id}`),
+          });
+        }
+      }
+
+      if (comp.computerCardNumber && comp.licenseExpiry) {
+        const status = calculateCompanyDocumentStatus(comp.licenseExpiry);
+        const days = getDaysRemaining(comp.licenseExpiry);
+        if (status !== 'SAFE') {
+          list.push({
+            id: `comp-cc-${comp.id}`,
+            title: `Computer Card: ${comp.computerCardNumber || comp.companyName}`,
+            companyName: comp.companyName,
+            documentType: 'Computer Card (Inherits License Expiry)',
+            expiryDate: comp.licenseExpiry,
+            daysRemaining: days,
+            entityType: 'document',
+            entityId: comp.id,
+            category: status === 'DANGER' ? 'Danger' : 'Warning',
+            statusCode: status,
+            isRead: readAlerts.includes(`comp-cc-${comp.id}`),
           });
         }
       }
     });
 
+    // 3. Uploaded Company Documents alerts
+    documents.forEach((doc) => {
+      const status = calculateCompanyDocumentStatus(doc.expiryDate);
+      const days = getDaysRemaining(doc.expiryDate);
+      if (status !== 'SAFE') {
+        list.push({
+          id: `doc-${doc.id}`,
+          title: doc.documentType,
+          companyName: doc.company?.companyName || 'Corporate Account',
+          documentType: doc.documentType,
+          expiryDate: doc.expiryDate,
+          daysRemaining: days,
+          entityType: 'document',
+          entityId: doc.companyId,
+          category: status === 'DANGER' ? 'Danger' : 'Warning',
+          statusCode: status,
+          isRead: readAlerts.includes(`doc-${doc.id}`),
+        });
+      }
+    });
+
     return list;
-  }, [documents, employees, companies, readAlerts]);
+  }, [employees, companies, documents, readAlerts]);
 
   // ── Filter + sort alerts ───────────────────────────────────────────────────
   const filteredAlerts = useMemo(() => {
@@ -347,36 +446,8 @@ export function useAppData(): AppData {
 
   const unreadAlertsCount = useMemo(
     () => allAlerts.filter((a) => !a.isRead && !deletedAlerts.includes(a.id)).length,
-    [allAlerts, deletedAlerts],
+    [allAlerts, deletedAlerts]
   );
-
-  // ── Dashboard counts ──────────────────────────────────────────────────────
-  const counts = useMemo(() => {
-    let expiredCount = 0;
-    let expiringToday = 0;
-    let expiring7Days = 0;
-    let expiring30Days = 0;
-
-    const checkDays = (dateStr: string) => {
-      const days = getDaysRemaining(dateStr);
-      if (days < 0) expiredCount++;
-      else if (days === 0) expiringToday++;
-      if (days >= 0 && days <= 7) expiring7Days++;
-      if (days >= 0 && days <= 30) expiring30Days++;
-    };
-
-    documents.forEach((doc) => checkDays(doc.expiryDate));
-    employees.forEach((emp) => {
-      checkDays(emp.qidExpiry);
-      if (emp.passportExpiry) checkDays(emp.passportExpiry);
-    });
-    companies.forEach((comp) => {
-      if (comp.crExpiry) checkDays(comp.crExpiry);
-      if (comp.licenseExpiry) checkDays(comp.licenseExpiry);
-    });
-
-    return { expiredCount, expiringToday, expiring7Days, expiring30Days };
-  }, [documents, employees, companies]);
 
   // ── Callbacks ──────────────────────────────────────────────────────────────
   const handleAddDocClick = useCallback(() => {
@@ -400,51 +471,36 @@ export function useAppData(): AppData {
     });
   }, []);
 
-  const handleOpenEmployeeDetails = useCallback(
-    (empId: string) => {
-      const emp = employees.find((e) => e.id === empId);
-      if (emp) {
-        setSelectedEmployee(emp);
-        setIsDetailsOpen(true);
-      }
-    },
-    [employees],
-  );
+  const handleMarkAllRead = useCallback(() => {
+    const allIds = allAlerts.map((a) => a.id);
+    setReadAlerts(allIds);
+    localStorage.setItem('readAlertIds', JSON.stringify(allIds));
+  }, [allAlerts]);
 
-  const handleOpenCompanyRegistry = useCallback(
-    (companyName: string) => {
-      setCompanySearchQuery(companyName);
-      setActiveView('companies');
-    },
-    [],
-  );
+  const handleOpenEmployeeDetails = useCallback((empId: string) => {
+    const emp = employees.find((e) => e.id === empId);
+    if (emp) {
+      setSelectedEmployee(emp);
+      setIsDetailsOpen(true);
+    }
+  }, [employees]);
+
+  const handleOpenCompanyRegistry = useCallback((companyName: string) => {
+    setCompanySearchQuery(companyName);
+    setActiveView('companies');
+  }, []);
 
   const handleCardClick = useCallback((targetView: 'companies' | 'employees' | 'alerts') => {
     setActiveView(targetView);
   }, []);
 
   const handleRecalculate = useCallback(async () => {
-    try {
-      await recalculateDocs.mutateAsync();
-    } catch (err) {
-      console.error(err);
-    }
+    await recalculateDocs.mutateAsync();
   }, [recalculateDocs]);
 
   const handleRequestPush = useCallback(async () => {
-    const granted = await NotificationService.requestPermission();
-    if (granted) {
-      NotificationService.sendNotification('DocExpiry Alerts Enabled', {
-        body: 'You will receive warnings about upcoming employee national QID and trade license expiry dates.',
-      });
-    }
+    await NotificationService.requestPermission();
   }, []);
-
-  const handleMarkAllRead = useCallback(() => {
-    const allIds = allAlerts.map((a) => a.id);
-    setReadAlerts(allIds);
-    localStorage.setItem('readAlertIds', JSON.stringify(allIds));
-  }, [allAlerts]);
 
   return {
     companies,
@@ -454,9 +510,19 @@ export function useAppData(): AppData {
     companiesLoading,
     employeesLoading,
     docsLoading,
+
     activeView,
     setActiveView,
+
+    employeeCounts,
+    companyCounts,
     counts,
+
+    employeeStatusFilter,
+    setEmployeeStatusFilter,
+    companyStatusFilter,
+    setCompanyStatusFilter,
+
     allAlerts,
     filteredAlerts,
     unreadAlertsCount,
@@ -472,24 +538,30 @@ export function useAppData(): AppData {
     setAlertSortOrder,
     handleMarkRead,
     handleDeleteAlert,
+
     isDocFormOpen,
     setIsDocFormOpen,
     editingDoc,
     setEditingDoc,
     handleAddDocClick,
+
     isDetailsOpen,
     setIsDetailsOpen,
     selectedEmployee,
     setSelectedEmployee,
     handleOpenEmployeeDetails,
+
     companySearchQuery,
     handleOpenCompanyRegistry,
+
     isSearchOpen,
     setIsSearchOpen,
+
     handleRecalculate,
     handleRequestPush,
     handleMarkAllRead,
     isRecalculating: recalculateDocs.isPending,
+
     handleCardClick,
   };
 }

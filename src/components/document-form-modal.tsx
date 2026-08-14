@@ -180,7 +180,7 @@ export function DocumentFormModal({ document: doc, open, onOpenChange }: Documen
             <Input placeholder="Optional annotations..." {...register('notes')} />
           </div>
 
-          <DialogFooter className="pt-2">
+          <DialogFooter className="pt-2 flex flex-col-reverse sm:flex-row gap-2.5">
             <Button
               type="button"
               variant="outline"
@@ -189,10 +189,15 @@ export function DocumentFormModal({ document: doc, open, onOpenChange }: Documen
                 onOpenChange(false);
               }}
               disabled={isSubmitting}
+              className="w-full sm:w-auto h-11 sm:h-9 text-xs"
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button 
+              type="submit" 
+              disabled={isSubmitting}
+              className="w-full sm:w-auto h-11 sm:h-9 bg-primary text-primary-foreground font-semibold text-xs shadow-xs"
+            >
               {isSubmitting ? 'Saving...' : isEdit ? 'Update Document' : 'Save Document'}
             </Button>
           </DialogFooter>

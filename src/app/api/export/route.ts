@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
-import { calculateExpiryStatus } from '@/lib/utils';
+import { calculateCompanyDocumentStatus, calculateEmployeeQidStatus } from '@/lib/status-calculator';
 
 // POST /api/export — Generate CSV or JSON export
 export async function POST(req: NextRequest) {
@@ -15,14 +15,19 @@ export async function POST(req: NextRequest) {
         where.companyId = companyId;
       }
 
-      const employees = await prisma.employee.findMany({
+      const rawEmployees = await prisma.employee.findMany({
         where,
         include: { company: true },
         orderBy: { employeeName: 'asc' },
       });
 
+      const employees = rawEmployees.map((e) => ({
+        ...e,
+        qidStatus: calculateEmployeeQidStatus(e.qidExpiry),
+      }));
+
       if (format === 'csv') {
-        const header = 'Employee Name,Company,Local Contact,Native Relative Contact,QID Number,QID Expiry,Passport Number,Passport Expiry,Status,Notes\n';
+        const header = 'Employee Name,Company,Local Contact,Native Relative Contact,QID Number,QID Expiry,QID Status,Passport Number,Passport Expiry,Notes\n';
         const rows = employees
           .map((e) =>
             [
@@ -32,9 +37,9 @@ export async function POST(req: NextRequest) {
               `"${e.nativeRelativePhone || ''}"`,
               `"${e.qidNumber}"`,
               `"${new Date(e.qidExpiry).toISOString().split('T')[0]}"`,
+              `"${e.qidStatus}"`,
               `"${e.passportNumber || ''}"`,
               `"${e.passportExpiry ? new Date(e.passportExpiry).toISOString().split('T')[0] : ''}"`,
-              `"${e.status}"`,
               `"${(e.notes || '').replace(/"/g, '""')}"`,
             ].join(',')
           )
@@ -68,7 +73,7 @@ export async function POST(req: NextRequest) {
 
     const mapped = documents.map((d) => ({
       ...d,
-      status: calculateExpiryStatus(d.expiryDate),
+      status: calculateCompanyDocumentStatus(d.expiryDate),
     }));
 
     if (format === 'csv') {

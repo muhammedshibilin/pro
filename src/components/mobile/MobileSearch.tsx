@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, ArrowLeft, ChevronRight } from 'lucide-react';
+import { Search, ArrowLeft, ChevronRight, UserPlus, Building2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Employee, Company } from '@/types';
@@ -33,7 +33,6 @@ export default function MobileSearch({ open, onOpenChange, onSelectEmployee, onS
       }
       setIsLoading(true);
       try {
-        // Mock API call for search
         const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
         if (response.ok) {
           const data = await response.json();
@@ -53,66 +52,84 @@ export default function MobileSearch({ open, onOpenChange, onSelectEmployee, onS
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] bg-background flex flex-col animate-in fade-in zoom-in-95 duration-200">
-      <div className="flex items-center gap-2 p-4 border-b h-16">
-        <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
+    <div className="fixed inset-0 z-[100] bg-background flex flex-col w-full max-w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      {/* Search Header */}
+      <header className="flex items-center gap-2 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 border-b bg-card shadow-xs shrink-0">
+        <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="h-10 w-10 shrink-0">
           <ArrowLeft className="w-5 h-5" />
+          <span className="sr-only">Back</span>
         </Button>
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+        <div className="relative flex-1 min-w-0">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search employees, companies..."
-            className="w-full h-12 pl-10 rounded-full bg-muted border-none text-base"
+            placeholder="Search employees, QID, companies, CR..."
+            className="w-full h-11 pl-10 rounded-xl bg-muted/70 border-none text-sm"
           />
         </div>
-      </div>
+      </header>
 
-      <div className="flex-1 overflow-y-auto p-4">
+      {/* Results Container */}
+      <main className="flex-1 overflow-y-auto p-4 pb-[max(2rem,env(safe-area-inset-bottom))] space-y-6">
         {isLoading ? (
-          <div className="flex justify-center p-8 text-muted-foreground">Searching...</div>
+          <div className="flex justify-center p-8 text-xs font-semibold text-muted-foreground">Searching compliance records...</div>
         ) : query.length > 0 && results.employees.length === 0 && results.companies.length === 0 ? (
-          <div className="flex justify-center p-8 text-muted-foreground">No results found</div>
+          <div className="flex flex-col items-center justify-center p-8 text-center space-y-2">
+            <p className="font-bold text-sm text-foreground">No matches found</p>
+            <p className="text-xs text-muted-foreground">Try searching with a different name, QID number, or company CR.</p>
+          </div>
         ) : (
           <div className="space-y-6">
+            {/* Employees Search Group */}
             {results.employees.length > 0 && (
-              <div>
-                <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-2">Employees</h3>
+              <div className="space-y-2.5">
+                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-1 flex items-center gap-1.5">
+                  <UserPlus className="w-3.5 h-3.5 text-primary" />
+                  <span>Employees ({results.employees.length})</span>
+                </h3>
                 <div className="space-y-2">
                   {results.employees.map(emp => (
                     <div 
                       key={emp.id} 
                       onClick={() => { onSelectEmployee(emp); onOpenChange(false); }}
-                      className="flex items-center justify-between p-3 bg-card border rounded-xl active:scale-[0.98] transition-all"
+                      className="flex items-center justify-between gap-3 p-3.5 bg-card border rounded-2xl active:scale-[0.98] transition-transform cursor-pointer shadow-xs"
                     >
-                      <div>
-                        <p className="font-medium">{emp.employeeName}</p>
-                        <p className="text-xs text-muted-foreground font-mono">QID: {emp.qidNumber}{emp.phone ? ` • Ph: ${emp.phone}` : ''}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-sm text-foreground break-words">{emp.employeeName}</p>
+                        <p className="text-xs text-muted-foreground font-mono mt-0.5 break-all">
+                          QID: {emp.qidNumber} {emp.phone ? `• Ph: ${emp.phone}` : ''}
+                        </p>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                      <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
                     </div>
                   ))}
                 </div>
               </div>
             )}
             
+            {/* Companies Search Group */}
             {results.companies.length > 0 && (
-              <div>
-                <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-2">Companies</h3>
+              <div className="space-y-2.5">
+                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-1 flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5 text-blue-500" />
+                  <span>Companies ({results.companies.length})</span>
+                </h3>
                 <div className="space-y-2">
                   {results.companies.map(comp => (
                     <div 
                       key={comp.id} 
                       onClick={() => { onSelectCompany(comp); onOpenChange(false); }}
-                      className="flex items-center justify-between p-3 bg-card border rounded-xl active:scale-[0.98] transition-all"
+                      className="flex items-center justify-between gap-3 p-3.5 bg-card border rounded-2xl active:scale-[0.98] transition-transform cursor-pointer shadow-xs"
                     >
-                      <div>
-                        <p className="font-medium">{comp.companyName}</p>
-                        <p className="text-sm text-muted-foreground">{comp.ownerName || (comp.crNumber ? `CR: ${comp.crNumber}` : 'Corporate Account')}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-sm text-foreground break-words">{comp.companyName}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 break-words">
+                          {comp.ownerName ? `Authorized: ${comp.ownerName}` : (comp.crNumber ? `CR: ${comp.crNumber}` : 'Corporate Registry')}
+                        </p>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                      <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
                     </div>
                   ))}
                 </div>
@@ -120,7 +137,7 @@ export default function MobileSearch({ open, onOpenChange, onSelectEmployee, onS
             )}
           </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }

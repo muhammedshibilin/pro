@@ -19,13 +19,18 @@ export async function GET(req: NextRequest) {
 
     const where: Prisma.EmployeeWhereInput = {};
     if (companyId) {
-      where.companyId = companyId;
+      where.OR = [
+        { companyId },
+        { currentWorkingCompanyId: companyId },
+      ];
     }
 
     const employees = await prisma.employee.findMany({
       where,
       include: {
         company: true,
+        currentWorkingCompany: true,
+        person: true,
       },
       orderBy: {
         employeeName: 'asc',
@@ -45,13 +50,15 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/employees — Create employee
+// POST /api/employees — Create employee with Role, Registered Company, and Current Working Company
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
       employeeName,
+      role,
       companyId,
+      currentWorkingCompanyId,
       phone,
       nativeRelativePhone,
       qidNumber,
@@ -67,17 +74,19 @@ export async function POST(req: NextRequest) {
 
     const name = typeof employeeName === 'string' ? employeeName.trim() : '';
     const qid = typeof qidNumber === 'string' ? qidNumber.trim() : '';
+    const passport = passportNumber ? String(passportNumber).trim() : null;
+    const normalizedRole = role && String(role).toUpperCase() === 'OWNER' ? 'OWNER' : 'EMPLOYEE';
 
     if (!name || name.length < 2) {
       return NextResponse.json(
-        { statusCode: 400, message: 'Personnel name is required (minimum 2 characters)' },
+        { statusCode: 400, message: 'Employee name is required (minimum 2 characters)' },
         { status: 400 }
       );
     }
 
     if (!companyId) {
       return NextResponse.json(
-        { statusCode: 400, message: 'A sponsoring company is required' },
+        { statusCode: 400, message: 'Registered company is required' },
         { status: 400 }
       );
     }
@@ -87,6 +96,30 @@ export async function POST(req: NextRequest) {
         { statusCode: 400, message: 'Qatar ID (QID) must be at least 5 digits' },
         { status: 400 }
       );
+    }
+
+    // 1. Validate if QID number already exists
+    const existingQid = await prisma.employee.findUnique({
+      where: { qidNumber: qid },
+    });
+    if (existingQid) {
+      return NextResponse.json(
+        { statusCode: 400, message: `An employee with QID number "${qid}" already exists (${existingQid.employeeName}).` },
+        { status: 400 }
+      );
+    }
+
+    // 2. Validate if Passport number already exists
+    if (passport) {
+      const existingPassport = await prisma.employee.findFirst({
+        where: { passportNumber: { equals: passport, mode: 'insensitive' } },
+      });
+      if (existingPassport) {
+        return NextResponse.json(
+          { statusCode: 400, message: `An employee with Passport number "${passport}" already exists (${existingPassport.employeeName}).` },
+          { status: 400 }
+        );
+      }
     }
 
     const parsedQidExpiry = new Date(qidExpiry);
@@ -109,16 +142,27 @@ export async function POST(req: NextRequest) {
       parsedPassportExpiry = d;
     }
 
-    // Verify company exists
-    const companyExists = await prisma.company.findUnique({
+    // Verify registered company exists
+    const registeredCompany = await prisma.company.findUnique({
       where: { id: companyId },
     });
 
-    if (!companyExists) {
+    if (!registeredCompany) {
       return NextResponse.json(
-        { statusCode: 400, message: 'Selected company does not exist' },
+        { statusCode: 400, message: 'Selected registered company does not exist' },
         { status: 400 }
       );
+    }
+
+    // Verify current working company if provided
+    let validWorkingCompanyId: string | null = null;
+    if (currentWorkingCompanyId && currentWorkingCompanyId.trim()) {
+      const workingCompany = await prisma.company.findUnique({
+        where: { id: currentWorkingCompanyId.trim() },
+      });
+      if (workingCompany) {
+        validWorkingCompanyId = workingCompany.id;
+      }
     }
 
     const code = employeeCode || generateEmployeeCode();
@@ -126,13 +170,15 @@ export async function POST(req: NextRequest) {
     const employee = await prisma.employee.create({
       data: {
         employeeName: name,
+        role: normalizedRole,
         companyId,
+        currentWorkingCompanyId: validWorkingCompanyId,
         phone: phone ? String(phone).trim() : '',
         nativeRelativePhone: nativeRelativePhone ? String(nativeRelativePhone).trim() : '',
         qidNumber: qid,
         qidExpiry: parsedQidExpiry,
         qidPhoto: qidPhoto ? String(qidPhoto).trim() : null,
-        passportNumber: passportNumber ? String(passportNumber).trim() : null,
+        passportNumber: passport,
         passportExpiry: parsedPassportExpiry,
         passportPhoto: passportPhoto ? String(passportPhoto).trim() : null,
         employeeCode: code,
@@ -141,8 +187,22 @@ export async function POST(req: NextRequest) {
       },
       include: {
         company: true,
+        currentWorkingCompany: true,
+        person: true,
       },
     });
+
+    // Create initial assignment history entry if assigned to a working company
+    if (validWorkingCompanyId) {
+      await prisma.companyAssignmentHistory.create({
+        data: {
+          employeeId: employee.id,
+          companyId: validWorkingCompanyId,
+          startDate: new Date(),
+          notes: 'Initial assignment upon employee creation',
+        },
+      });
+    }
 
     return NextResponse.json(
       { statusCode: 201, data: employee, message: 'Employee created successfully' },

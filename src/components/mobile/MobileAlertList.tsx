@@ -26,38 +26,39 @@ export default function MobileAlertList({ appData }: MobileAlertListProps) {
 
   const categories: { id: string; label: string }[] = [
     { id: '', label: 'All Alerts' },
-    { id: 'Expired', label: 'Expired' },
-    { id: 'Today', label: 'Today' },
-    { id: '7 Days', label: '7 Days' },
-    { id: '15 Days', label: '15 Days' },
-    { id: '30 Days', label: '30 Days' },
+    { id: '1st Month Expired', label: '⚫ 1st Mo Expired' },
+    { id: '2nd Month Expired', label: '🟡 2nd Mo Expired' },
+    { id: '3rd Month Expired', label: '🔴 3rd Mo Expired' },
+    { id: 'Danger', label: '🔴 Danger (<1 Mo / Exp)' },
+    { id: 'Warning', label: '🟡 Warning (2 Mo)' },
+    { id: 'Fully Expired', label: '⚪ Outside (3+ Mo)' },
   ];
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col h-full w-full max-w-full bg-background overflow-hidden">
       {/* Sticky Header & Filter Chips */}
-      <div className="sticky top-0 z-30 bg-background/90 backdrop-blur-md p-4 space-y-3 pb-2.5 border-b">
-        <div className="flex items-center justify-between">
-          <h1 className="text-lg font-bold text-foreground font-display flex items-center gap-2">
-            <Bell className="w-5 h-5 text-primary" />
-            Compliance Radar
+      <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-md px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 space-y-3 border-b shadow-xs shrink-0">
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="text-lg font-bold text-foreground font-display flex items-center gap-2 truncate">
+            <Bell className="w-5 h-5 text-primary shrink-0" />
+            <span>Compliance Attention Radar</span>
           </h1>
           <button
             onClick={handleMarkAllRead}
-            className="text-xs font-semibold text-primary flex items-center gap-1 hover:underline active:scale-95 transition-transform"
+            className="text-xs font-semibold text-primary flex items-center gap-1 hover:underline active:scale-95 transition-transform shrink-0"
           >
             <CheckCheck className="w-3.5 h-3.5" />
-            Mark All Read
+            <span>Mark All Read</span>
           </button>
         </div>
 
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input 
             value={alertSearch}
             onChange={(e) => setAlertSearch(e.target.value)}
-            placeholder="Search permits, staff, entities..." 
-            className="w-full h-10 pl-9 rounded-xl bg-muted/70 border-none text-xs"
+            placeholder="Search permit, employee, company..." 
+            className="w-full h-11 pl-10 rounded-xl bg-muted/60 border-none text-sm"
           />
         </div>
         
@@ -66,7 +67,7 @@ export default function MobileAlertList({ appData }: MobileAlertListProps) {
             <button
               key={cat.id || 'all'}
               onClick={() => setAlertCategoryFilter(cat.id as AlertCategory | '')}
-              className={`flex-shrink-0 h-8 px-3.5 rounded-full text-xs font-semibold transition-colors ${
+              className={`flex-shrink-0 h-8 px-3.5 rounded-full text-xs font-semibold transition-all ${
                 alertCategoryFilter === cat.id
                   ? 'bg-primary text-primary-foreground shadow-xs' 
                   : 'bg-muted text-muted-foreground hover:bg-muted/80'
@@ -76,10 +77,10 @@ export default function MobileAlertList({ appData }: MobileAlertListProps) {
             </button>
           ))}
         </div>
-      </div>
+      </header>
 
       {/* Alert Feed */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-2.5 pb-28">
+      <main className="flex-1 overflow-y-auto p-4 space-y-2.5 pb-[max(6rem,calc(env(safe-area-inset-bottom)+5rem))]">
         {filteredAlerts.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-center space-y-3">
             <div className="w-14 h-14 bg-muted/80 rounded-2xl flex items-center justify-center">
@@ -107,7 +108,7 @@ export default function MobileAlertList({ appData }: MobileAlertListProps) {
             />
           ))
         )}
-      </div>
+      </main>
     </div>
   );
 }

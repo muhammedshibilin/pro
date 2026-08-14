@@ -1,12 +1,21 @@
 'use client';
 
-import { useDeviceType } from '@/hooks/use-device';
+import React from 'react';
 import { DesktopApp } from '@/components/desktop/DesktopApp';
 import MobileApp from '@/components/mobile/MobileApp';
 
 export default function Home() {
-  const { isMobile } = useDeviceType();
+  return (
+    <div className="w-full min-h-screen bg-background text-foreground">
+      {/* Mobile PWA App (< 768px) */}
+      <div className="block md:hidden w-full h-full">
+        <MobileApp />
+      </div>
 
-  // Directly render purpose-built interface for device layout
-  return isMobile ? <MobileApp /> : <DesktopApp />;
+      {/* Desktop ERP System (>= 768px) */}
+      <div className="hidden md:block w-full h-full">
+        <DesktopApp />
+      </div>
+    </div>
+  );
 }

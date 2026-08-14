@@ -13,44 +13,81 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Person {
+  id        String     @id @default(uuid())
+  name      String
+  phone     String?    @default("")
+  email     String?    @default("")
+  qidNumber String?
+  notes     String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  companies Company[]
+  employees Employee[]
+}
+
 model Company {
-  id            String            @id @default(uuid())
-  companyName   String
-  crNumber      String?           // Commercial Registration (CR) Number
-  crExpiry      DateTime?         // CR Expiry Date
-  crPhoto       String?           // Cloudinary URL string for CR document photo
-  licenseNumber String?           // Trade License Number
-  licenseExpiry DateTime?         // Trade License Expiry Date
-  licensePhoto  String?           // Cloudinary URL string for License document photo
-  ownerName     String?           @default("")
-  phone         String?           @default("")
-  email         String?           @default("")
-  notes         String?
-  status        String            @default("Active") // "Active", "Inactive"
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  employees     Employee[]
-  documents     CompanyDocument[]
+  id                 String                     @id @default(uuid())
+  companyName        String
+  ownerId            String?
+  owner              Person?                    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  ownerName          String?                    @default("")
+  crNumber           String?                    // Commercial Registration (CR) Number
+  crExpiry           DateTime?                  // CR Expiry Date
+  crPhoto            String?                    // Cloudinary URL string for CR document photo
+  licenseNumber      String?                    // Trade License Number
+  licenseExpiry      DateTime?                  // Trade License Expiry Date
+  licensePhoto       String?                    // Cloudinary URL string for License document photo
+  computerCardNumber String?                    // Computer Card / Establishment Card Number (Expiry inherits from licenseExpiry)
+  computerCardPhoto  String?                    // Cloudinary URL string for Computer Card photo
+  phone              String?                    @default("")
+  email              String?                    @default("")
+  notes              String?
+  status             String                     @default("Active") // "Active", "Inactive"
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+  employees          Employee[]                 @relation("RegisteredCompany")
+  workingEmployees   Employee[]                 @relation("WorkingCompany")
+  documents          CompanyDocument[]
+  assignmentHistory  CompanyAssignmentHistory[]
 }
 
 model Employee {
-  id                  String    @id @default(uuid())
-  employeeName        String
-  companyId           String
-  company             Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  phone               String?   // Local / Qatar Contact Phone Number
-  nativeRelativePhone String?   // Native country relative / emergency contact number
-  qidNumber           String    @unique // Qatar ID Number
-  qidExpiry           DateTime  // Qatar ID Expiry Date
-  qidPhoto            String?   // Cloudinary / upload URL for Qatar ID photo
-  passportNumber      String?   // Passport Number
-  passportExpiry      DateTime? // Passport Expiry Date
-  passportPhoto       String?   // Cloudinary / upload URL for Passport photo
-  employeeCode        String?   // Optional legacy employee code
-  notes               String?
-  status              String    @default("Active") // "Active", "Terminated", "On Leave"
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  id                      String                     @id @default(uuid())
+  employeeName            String
+  role                    String                     @default("EMPLOYEE") // "OWNER", "EMPLOYEE"
+  personId                String?
+  person                  Person?                    @relation(fields: [personId], references: [id], onDelete: SetNull)
+  companyId               String                     // Registered Company
+  company                 Company                    @relation("RegisteredCompany", fields: [companyId], references: [id], onDelete: Cascade)
+  currentWorkingCompanyId String?                    // Current Working Company (Optional, can be different from Registered Company)
+  currentWorkingCompany   Company?                   @relation("WorkingCompany", fields: [currentWorkingCompanyId], references: [id], onDelete: SetNull)
+  phone                   String?                    // Local / Qatar Contact Phone Number
+  nativeRelativePhone     String?                    // Native country relative / emergency contact number
+  qidNumber               String                     @unique // Qatar ID Number
+  qidExpiry               DateTime                   // Qatar ID Expiry Date
+  qidPhoto                String?                    // Cloudinary / upload URL for Qatar ID photo
+  passportNumber          String?                    // Passport Number
+  passportExpiry          DateTime?                  // Passport Expiry Date
+  passportPhoto           String?                    // Cloudinary / upload URL for Passport photo
+  employeeCode            String?                    // Optional legacy employee code
+  notes                   String?
+  status                  String                     @default("Active") // "Active", "Terminated", "On Leave"
+  createdAt               DateTime                   @default(now())
+  updatedAt               DateTime                   @updatedAt
+  assignmentHistory       CompanyAssignmentHistory[]
+}
+
+model CompanyAssignmentHistory {
+  id         String    @id @default(uuid())
+  employeeId String
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  companyId  String
+  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  startDate  DateTime  @default(now())
+  endDate    DateTime?
+  notes      String?
+  createdAt  DateTime  @default(now())
 }
 
 model CompanyDocument {

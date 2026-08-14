@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-// GET /api/companies — List all companies with employee & document counts
+// GET /api/companies — List all companies with employee & document counts and owner relation
 export async function GET() {
   try {
     const companies = await prisma.company.findMany({
       include: {
+        owner: true,
         _count: {
           select: {
             employees: true,
@@ -31,19 +32,22 @@ export async function GET() {
   }
 }
 
-// POST /api/companies — Create a new company with CR, License, and Cloudinary photos
+// POST /api/companies — Create a new company with Owner, CR, License, Computer Card, and Cloudinary photos
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
       companyName,
+      ownerId,
+      ownerName,
       crNumber,
       crExpiry,
       crPhoto,
       licenseNumber,
       licenseExpiry,
       licensePhoto,
-      ownerName,
+      computerCardNumber,
+      computerCardPhoto,
       phone,
       email,
       notes,
@@ -76,22 +80,57 @@ export async function POST(req: NextRequest) {
       parsedLicenseExpiry = d;
     }
 
+    // Resolve Person / Owner
+    let resolvedOwnerId: string | null = ownerId ? String(ownerId).trim() : null;
+    let resolvedOwnerName: string = ownerName ? String(ownerName).trim() : '';
+
+    if (resolvedOwnerId) {
+      const existingPerson = await prisma.person.findUnique({ where: { id: resolvedOwnerId } });
+      if (existingPerson) {
+        resolvedOwnerName = existingPerson.name;
+      }
+    } else if (resolvedOwnerName) {
+      // Find or create person by name
+      let person = await prisma.person.findFirst({
+        where: {
+          name: {
+            equals: resolvedOwnerName,
+            mode: 'insensitive',
+          },
+        },
+      });
+
+      if (!person) {
+        person = await prisma.person.create({
+          data: {
+            name: resolvedOwnerName,
+          },
+        });
+      }
+      resolvedOwnerId = person.id;
+      resolvedOwnerName = person.name;
+    }
+
     const company = await prisma.company.create({
       data: {
         companyName: name,
+        ownerId: resolvedOwnerId,
+        ownerName: resolvedOwnerName,
         crNumber: crNumber ? String(crNumber).trim() : null,
         crExpiry: parsedCrExpiry,
         crPhoto: crPhoto ? String(crPhoto).trim() : null,
         licenseNumber: licenseNumber ? String(licenseNumber).trim() : null,
         licenseExpiry: parsedLicenseExpiry,
         licensePhoto: licensePhoto ? String(licensePhoto).trim() : null,
-        ownerName: ownerName ? String(ownerName).trim() : '',
+        computerCardNumber: computerCardNumber ? String(computerCardNumber).trim() : null,
+        computerCardPhoto: computerCardPhoto ? String(computerCardPhoto).trim() : null,
         phone: phone ? String(phone).trim() : '',
         email: email ? String(email).trim() : '',
         notes: notes ? String(notes).trim() : null,
         status: status || 'Active',
       },
       include: {
+        owner: true,
         _count: {
           select: {
             employees: true,

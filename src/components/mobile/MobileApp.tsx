@@ -9,8 +9,8 @@ import MobileCompanyList from './MobileCompanyList';
 import MobileAlertList from './MobileAlertList';
 import MobileSettings from './MobileSettings';
 import MobileSearch from './MobileSearch';
-import { EmployeeFormModal } from '@/components/employee-form-modal';
-import { CompanyFormModal } from '@/components/company-form-modal';
+import MobileEmployeeForm from './MobileEmployeeForm';
+import MobileCompanyForm from './MobileCompanyForm';
 import { DocumentFormModal } from '@/components/document-form-modal';
 import { EmployeeDetailsModal } from '@/components/employee-details-modal';
 
@@ -19,7 +19,6 @@ export default function MobileApp() {
   
   const [isEmployeeFormOpen, setIsEmployeeFormOpen] = useState(false);
   const [isCompanyFormOpen, setIsCompanyFormOpen] = useState(false);
-  // Using appData for document form state since it's shared
   
   const renderView = () => {
     switch (appData.activeView) {
@@ -51,20 +50,17 @@ export default function MobileApp() {
           appData.setIsDetailsOpen(true);
         }}
         onSelectCompany={() => {
-          // In a real app we'd open the company detail, but for now just navigate
           appData.setActiveView('companies');
         }}
       />
 
-      <EmployeeFormModal 
-        open={isEmployeeFormOpen} 
-        onOpenChange={setIsEmployeeFormOpen} 
-      />
+      {isEmployeeFormOpen && (
+        <MobileEmployeeForm onBack={() => setIsEmployeeFormOpen(false)} />
+      )}
       
-      <CompanyFormModal 
-        open={isCompanyFormOpen} 
-        onOpenChange={setIsCompanyFormOpen} 
-      />
+      {isCompanyFormOpen && (
+        <MobileCompanyForm onBack={() => setIsCompanyFormOpen(false)} />
+      )}
       
       <DocumentFormModal 
         document={appData.editingDoc || undefined} 
