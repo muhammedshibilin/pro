@@ -19,6 +19,7 @@ import { Input } from './ui/input';
 import { Select } from './ui/select';
 import { Building2, FileCheck, ShieldCheck, User, Plus, CreditCard, Check, Info } from 'lucide-react';
 import { CloudinaryPhotoUpload } from './cloudinary-photo-upload';
+import { FormSection } from '@/components/shared';
 
 const companySchema = z.object({
   companyName: z

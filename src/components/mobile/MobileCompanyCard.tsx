@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { Company } from '@/types';
-import { ChevronRight, Users, FileCheck, ShieldCheck, CreditCard, Image as ImageIcon, User } from 'lucide-react';
+import { ChevronRight, Users, FileCheck, ShieldCheck, CreditCard, Image as ImageIcon, User, Edit3, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { getDaysRemaining } from '@/lib/utils';
 import { 
   calculateCompanyDocumentStatus, 
@@ -13,9 +14,11 @@ import { cn } from '@/lib/utils';
 interface MobileCompanyCardProps {
   company: Company;
   onTap: (company: Company) => void;
+  onEdit?: (company: Company) => void;
+  onDelete?: (company: Company) => void;
 }
 
-export default function MobileCompanyCard({ company, onTap }: MobileCompanyCardProps) {
+export default function MobileCompanyCard({ company, onTap, onEdit, onDelete }: MobileCompanyCardProps) {
   const renderDocBadge = (dateString?: string | null) => {
     if (!dateString) return null;
     const status = calculateCompanyDocumentStatus(dateString);
@@ -45,8 +48,8 @@ export default function MobileCompanyCard({ company, onTap }: MobileCompanyCardP
       className="w-full bg-card rounded-2xl border p-4 shadow-xs active:scale-[0.99] transition-all space-y-3 cursor-pointer hover:border-primary/30"
       onClick={() => onTap(company)}
     >
-      {/* Header Row: Avatar, Name & Arrow */}
-      <div className="flex items-start justify-between gap-3">
+      {/* Header Row: Avatar, Name, Actions & Arrow */}
+      <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-3 min-w-0 flex-1">
           <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary/20 to-blue-500/10 text-primary flex items-center justify-center font-bold text-sm shrink-0 border border-primary/20 mt-0.5">
             {company.companyName ? company.companyName.charAt(0).toUpperCase() : 'C'}
@@ -61,7 +64,40 @@ export default function MobileCompanyCard({ company, onTap }: MobileCompanyCardP
             )}
           </div>
         </div>
-        <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0 mt-1" />
+
+        <div className="flex items-center gap-1 shrink-0">
+          {onEdit && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(company);
+              }}
+              title="Edit Company"
+            >
+              <Edit3 className="w-4 h-4" />
+            </Button>
+          )}
+          {onDelete && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(company);
+              }}
+              title="Delete Company"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          )}
+          <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
+        </div>
       </div>
 
       {/* CR, License, & Computer Card Details */}

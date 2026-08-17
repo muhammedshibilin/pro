@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { Employee } from '@/types';
-import { ChevronRight, Phone, CreditCard, BookOpen, Image as ImageIcon, Building2, Briefcase } from 'lucide-react';
+import { ChevronRight, Phone, CreditCard, BookOpen, Image as ImageIcon, Building2, Briefcase, Edit3, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { getDaysRemaining } from '@/lib/utils';
 import { 
   calculateEmployeeQidStatus, 
@@ -13,9 +14,11 @@ import { cn } from '@/lib/utils';
 interface MobileEmployeeCardProps {
   employee: Employee;
   onTap: (employee: Employee) => void;
+  onEdit?: (employee: Employee) => void;
+  onDelete?: (employee: Employee) => void;
 }
 
-export default function MobileEmployeeCard({ employee, onTap }: MobileEmployeeCardProps) {
+export default function MobileEmployeeCard({ employee, onTap, onEdit, onDelete }: MobileEmployeeCardProps) {
   const initials = (employee.employeeName || 'EM').substring(0, 2).toUpperCase();
 
   const qidStatus = calculateEmployeeQidStatus(employee.qidExpiry);
@@ -52,8 +55,8 @@ export default function MobileEmployeeCard({ employee, onTap }: MobileEmployeeCa
       className="w-full bg-card rounded-2xl border p-4 shadow-xs active:scale-[0.99] transition-all space-y-3 cursor-pointer hover:border-primary/30"
       onClick={() => onTap(employee)}
     >
-      {/* Header Row: Initials & Employee / Company Names */}
-      <div className="flex items-start justify-between gap-3">
+      {/* Header Row: Initials, Employee / Company Names & Actions */}
+      <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-3 min-w-0 flex-1">
           <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-primary/20 text-primary flex items-center justify-center font-bold text-sm shrink-0 border border-primary/20 mt-0.5">
             {initials}
@@ -82,7 +85,40 @@ export default function MobileEmployeeCard({ employee, onTap }: MobileEmployeeCa
             )}
           </div>
         </div>
-        <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0 mt-1" />
+
+        <div className="flex items-center gap-1 shrink-0">
+          {onEdit && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(employee);
+              }}
+              title="Edit Employee"
+            >
+              <Edit3 className="w-4 h-4" />
+            </Button>
+          )}
+          {onDelete && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(employee);
+              }}
+              title="Delete Employee"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          )}
+          <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
+        </div>
       </div>
 
       {/* Contact Number */}

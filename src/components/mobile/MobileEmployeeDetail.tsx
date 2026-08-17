@@ -2,14 +2,17 @@
 
 import React, { useState } from 'react';
 import { Employee } from '@/types';
-import { ArrowLeft, Edit2, Trash2, Building2, Phone, Globe, CreditCard, BookOpen, Eye, X } from 'lucide-react';
+import { Edit2, Trash2, Building2, Phone, Globe, CreditCard, BookOpen, Eye, X, UserCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { formatDate, getDaysRemaining } from '@/lib/utils';
+import { formatDate, getDaysRemaining, cn } from '@/lib/utils';
 import { calculateEmployeeQidStatus, EMPLOYEE_STATUS_META } from '@/lib/status-calculator';
-import { cn } from '@/lib/utils';
 import MobileEmployeeForm from './MobileEmployeeForm';
-import { DeleteConfirmModal } from '@/components/delete-confirm-modal';
 import { useDeleteEmployee } from '@/hooks/use-employees';
+import {
+  PageHeader,
+  FormSection,
+  ConfirmationDialog,
+} from '@/components/shared';
 
 interface MobileEmployeeDetailProps {
   employee: Employee;
@@ -90,16 +93,27 @@ export default function MobileEmployeeDetail({ employee, onBack }: MobileEmploye
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col w-full max-w-full overflow-hidden animate-in slide-in-from-right">
-      {/* Top App Bar */}
-      <header className="flex items-center justify-between px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 border-b bg-card shadow-xs shrink-0">
-        <Button variant="ghost" size="icon" onClick={onBack} className="h-10 w-10 shrink-0">
-          <ArrowLeft className="w-5 h-5" />
-          <span className="sr-only">Back</span>
-        </Button>
-        <h1 className="text-base sm:text-lg font-bold text-foreground truncate px-2">Employee Profile</h1>
-        <div className="w-10 shrink-0" />
-      </header>
+    <div className="fixed inset-0 z-[100] bg-background flex flex-col w-full max-w-full overflow-hidden animate-in slide-in-from-right">
+      {/* Top App Bar with Top-Right Icon-Only Actions */}
+      <PageHeader
+        title="Employee Profile"
+        onBack={onBack}
+        primaryAction={{
+          icon: Edit2,
+          title: "Edit Employee Details",
+          onClick: () => setIsEditOpen(true),
+          variant: "outline",
+        }}
+        secondaryActions={[
+          {
+            icon: Trash2,
+            title: "Delete Employee",
+            variant: "destructive",
+            onClick: () => setIsDeleteOpen(true),
+          },
+        ]}
+        className="rounded-none border-x-0 border-t-0 p-3 bg-card shadow-xs shrink-0"
+      />
 
       {/* Main Scroll Content */}
       <main className="flex-1 overflow-y-auto p-4 space-y-4 pb-[max(7rem,calc(env(safe-area-inset-bottom)+6rem))]">
@@ -142,110 +156,79 @@ export default function MobileEmployeeDetail({ employee, onBack }: MobileEmploye
         </div>
 
         {/* Contact Vectors */}
-        <div className="bg-card rounded-2xl border border-amber-500/20 p-4 shadow-xs space-y-3">
-          <h3 className="font-bold text-sm flex items-center gap-2 text-amber-700 dark:text-amber-400">
-            <Phone className="w-4 h-4 shrink-0" />
-            <span>Contact Information</span>
-          </h3>
-          <div className="space-y-2.5 text-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-              <span className="text-muted-foreground flex items-center gap-1.5 font-medium">
-                <Phone className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-                <span>Qatar Contact Number:</span>
-              </span>
-              <strong className="font-mono text-foreground break-all">{employee.phone || '—'}</strong>
-            </div>
-
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 pt-1.5 border-t border-border/40">
-              <span className="text-muted-foreground flex items-center gap-1.5 font-medium">
-                <Globe className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-                <span>Native Relative Emergency Contact:</span>
-              </span>
-              <span className="font-mono text-foreground font-semibold break-words">{employee.nativeRelativePhone || '—'}</span>
-            </div>
+        <FormSection title="Contact Information" icon={Phone} variant="amber">
+          <div className="flex justify-between items-center pb-2 border-b border-border/40 text-xs">
+            <span className="text-muted-foreground font-medium flex items-center gap-1.5">
+              <Phone className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+              <span>Qatar Contact Number:</span>
+            </span>
+            <strong className="font-mono text-foreground">{employee.phone || '—'}</strong>
           </div>
-        </div>
+          <div className="flex justify-between items-center pt-1 text-xs">
+            <span className="text-muted-foreground font-medium flex items-center gap-1.5">
+              <Globe className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+              <span>Native Relative Contact:</span>
+            </span>
+            <span className="font-mono text-foreground font-semibold">{employee.nativeRelativePhone || '—'}</span>
+          </div>
+        </FormSection>
 
         {/* Qatar ID (QID) Details */}
-        <div className="bg-card rounded-2xl border border-blue-500/20 p-4 shadow-xs space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-border/40">
-            <h3 className="font-bold text-sm flex items-center gap-2 text-blue-600 dark:text-blue-400 min-w-0">
-              <CreditCard className="w-4 h-4 shrink-0" />
-              <span>Qatar ID (QID) Details</span>
-            </h3>
-            {employee.qidPhoto && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs gap-1.5 text-primary border-primary/20 hover:bg-primary/10"
-                onClick={() => setViewingPhoto({ url: employee.qidPhoto!, title: `${employee.employeeName} — Qatar ID` })}
-              >
-                <Eye className="w-3.5 h-3.5" />
-                <span>View Photo</span>
-              </Button>
-            )}
+        <FormSection title="Qatar ID (QID) Details" icon={CreditCard} variant="blue">
+          <div className="flex justify-between items-center pb-2 border-b border-border/40 text-xs">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase">QID Number</span>
+            <strong className="font-mono text-sm font-bold text-foreground">{employee.qidNumber}</strong>
           </div>
-
-          <div className="space-y-2.5 text-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">QID Number</span>
-              <strong className="font-mono text-sm font-bold text-foreground break-all">{employee.qidNumber}</strong>
-            </div>
-
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 pt-1.5 border-t border-border/40">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">QID Expiry Status</span>
-              <div>{renderQidBadge(employee.qidExpiry)}</div>
-            </div>
+          <div className="flex justify-between items-center pt-1 text-xs">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase">Expiry Status</span>
+            <div>{renderQidBadge(employee.qidExpiry)}</div>
           </div>
-        </div>
+          {employee.qidPhoto && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full h-8 text-xs gap-1.5 text-primary border-primary/20 mt-2"
+              onClick={() => setViewingPhoto({ url: employee.qidPhoto!, title: `${employee.employeeName} — Qatar ID` })}
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span>View QID Photo</span>
+            </Button>
+          )}
+        </FormSection>
 
         {/* Passport Details */}
-        <div className="bg-card rounded-2xl border border-emerald-500/20 p-4 shadow-xs space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-border/40">
-            <h3 className="font-bold text-sm flex items-center gap-2 text-emerald-600 dark:text-emerald-400 min-w-0">
-              <BookOpen className="w-4 h-4 shrink-0" />
-              <span>Passport Document Details</span>
-            </h3>
-            {employee.passportPhoto && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs gap-1.5 text-primary border-primary/20 hover:bg-primary/10"
-                onClick={() => setViewingPhoto({ url: employee.passportPhoto!, title: `${employee.employeeName} — Passport` })}
-              >
-                <Eye className="w-3.5 h-3.5" />
-                <span>View Photo</span>
-              </Button>
-            )}
+        <FormSection title="Passport Document Details" icon={BookOpen} variant="emerald">
+          <div className="flex justify-between items-center pb-2 border-b border-border/40 text-xs">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase">Passport Number</span>
+            <strong className="font-mono text-sm font-bold text-foreground">{employee.passportNumber || '—'}</strong>
           </div>
-
-          <div className="space-y-2.5 text-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Passport Number</span>
-              <strong className="font-mono text-sm font-bold text-foreground break-all">{employee.passportNumber || '—'}</strong>
-            </div>
-
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 pt-1.5 border-t border-border/40">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Passport Expiry Status</span>
-              <div>{renderExpiryBadge(employee.passportExpiry)}</div>
-            </div>
+          <div className="flex justify-between items-center pt-1 text-xs">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase">Expiry Status</span>
+            <div>{renderExpiryBadge(employee.passportExpiry)}</div>
           </div>
-        </div>
+          {employee.passportPhoto && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full h-8 text-xs gap-1.5 text-primary border-primary/20 mt-2"
+              onClick={() => setViewingPhoto({ url: employee.passportPhoto!, title: `${employee.employeeName} — Passport` })}
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span>View Passport Photo</span>
+            </Button>
+          )}
+        </FormSection>
 
         {/* Sponsor Company Info */}
-        <div className="bg-card rounded-2xl border p-4 shadow-xs space-y-2">
-          <h3 className="font-bold text-sm flex items-center gap-2 text-foreground">
-            <Building2 className="w-4 h-4 text-primary shrink-0" />
-            <span>Sponsoring Company</span>
-          </h3>
-          <p className="text-sm font-semibold text-foreground break-words">
+        <FormSection title="Sponsoring Company" icon={Building2}>
+          <p className="text-sm font-semibold text-foreground">
             {employee.company?.companyName || 'Unassigned Sponsor Entity'}
           </p>
-        </div>
+        </FormSection>
       </main>
 
-      {/* Bottom Sticky Action Bar */}
-      <footer className="fixed bottom-0 left-0 right-0 p-4 bg-card/95 backdrop-blur-lg border-t border-border/80 flex gap-3 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-xl z-40">
+      {/* Sticky Bottom Action Bar */}
+      <footer className="fixed bottom-0 left-0 right-0 p-4 bg-card/95 backdrop-blur-lg border-t border-border/80 flex gap-3 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-xl z-[100]">
         <Button 
           variant="outline" 
           className="flex-1 h-12 text-sm font-semibold text-rose-600 hover:bg-rose-500/10 border-rose-500/30" 
@@ -265,10 +248,7 @@ export default function MobileEmployeeDetail({ employee, onBack }: MobileEmploye
 
       {/* Full Photo Modal */}
       {viewingPhoto && (
-        <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={() => setViewingPhoto(null)}
-        >
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setViewingPhoto(null)}>
           <div className="relative w-full max-w-lg max-h-[85vh] bg-card rounded-2xl p-4 border shadow-2xl space-y-3 overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b pb-2">
               <span className="font-bold text-xs truncate text-foreground pr-2">{viewingPhoto.title}</span>
@@ -285,7 +265,7 @@ export default function MobileEmployeeDetail({ employee, onBack }: MobileEmploye
       {isEditOpen && (
         <MobileEmployeeForm employee={employee} onBack={() => setIsEditOpen(false)} />
       )}
-      <DeleteConfirmModal
+      <ConfirmationDialog
         open={isDeleteOpen}
         onOpenChange={setIsDeleteOpen}
         title="Delete Employee"

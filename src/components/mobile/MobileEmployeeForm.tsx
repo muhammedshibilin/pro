@@ -2,12 +2,13 @@
 
 import React, { useState } from 'react';
 import { Employee } from '@/types';
-import { ArrowLeft, UserPlus, Phone, Globe, CreditCard, BookOpen, Building2, Briefcase, UserCheck } from 'lucide-react';
+import { ArrowLeft, UserPlus, Phone, Globe, CreditCard, BookOpen, Building2, Briefcase, UserCheck, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCreateEmployee, useUpdateEmployee } from '@/hooks/use-employees';
 import { useCompanies } from '@/hooks/use-companies';
 import { CloudinaryPhotoUpload } from '../cloudinary-photo-upload';
+import { FormSection } from '@/components/shared';
 
 interface MobileEmployeeFormProps {
   employee?: Employee;
@@ -76,17 +77,30 @@ export default function MobileEmployeeForm({ employee, onBack }: MobileEmployeeF
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col w-full max-w-full overflow-hidden animate-in slide-in-from-bottom-full">
-      {/* Top App Bar */}
-      <header className="flex items-center px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 border-b bg-card shadow-xs shrink-0">
-        <Button variant="ghost" size="icon" onClick={onBack} className="h-10 w-10 shrink-0">
-          <ArrowLeft className="w-5 h-5" />
-          <span className="sr-only">Back</span>
+    <div className="fixed inset-0 z-[100] bg-background flex flex-col w-full max-w-full overflow-hidden animate-in slide-in-from-bottom-full">
+      {/* Top App Bar with prominent Save button */}
+      <header className="flex items-center justify-between px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 border-b bg-card shadow-xs shrink-0 z-50">
+        <div className="flex items-center min-w-0 flex-1 pr-2">
+          <Button variant="ghost" size="icon" onClick={onBack} className="h-10 w-10 shrink-0">
+            <ArrowLeft className="w-5 h-5" />
+            <span className="sr-only">Back</span>
+          </Button>
+          <h1 className="text-base sm:text-lg font-bold ml-1 flex items-center gap-2 truncate">
+            <UserPlus className="w-5 h-5 text-primary shrink-0" />
+            <span className="truncate">{employee ? 'Edit Employee Profile' : 'Register New Employee'}</span>
+          </h1>
+        </div>
+
+        <Button 
+          type="button"
+          onClick={handleSubmit}
+          disabled={isSaving}
+          size="sm"
+          className="h-9 px-3.5 text-xs font-bold rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/20 shrink-0 gap-1.5"
+        >
+          <Check className="w-4 h-4" />
+          <span>{isSaving ? 'Saving...' : 'Save'}</span>
         </Button>
-        <h1 className="text-base sm:text-lg font-bold ml-2 flex items-center gap-2 truncate">
-          <UserPlus className="w-5 h-5 text-primary shrink-0" />
-          <span>{employee ? 'Edit Employee Profile' : 'Register New Employee'}</span>
-        </h1>
       </header>
 
       {errorMessage && (
@@ -301,14 +315,15 @@ export default function MobileEmployeeForm({ employee, onBack }: MobileEmployeeF
       </form>
 
       {/* Bottom Sticky Submit Button */}
-      <footer className="fixed bottom-0 left-0 right-0 p-4 bg-card/95 backdrop-blur-lg border-t border-border/80 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-xl z-40">
+      <footer className="fixed bottom-0 left-0 right-0 p-4 bg-card/95 backdrop-blur-lg border-t border-border/80 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl z-[100]">
         <Button 
-          type="submit" 
+          type="button" 
           onClick={handleSubmit}
           disabled={isSaving}
-          className="w-full h-12 text-base font-bold rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/20"
+          className="w-full h-12 text-base font-bold rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/20 gap-2"
         >
-          {isSaving ? 'Saving...' : employee ? 'Update Employee Details' : 'Save Employee'}
+          <Check className="w-5 h-5" />
+          <span>{isSaving ? 'Saving...' : employee ? 'Update Employee Details' : 'Save Employee'}</span>
         </Button>
       </footer>
     </div>

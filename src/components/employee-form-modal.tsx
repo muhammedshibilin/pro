@@ -19,6 +19,7 @@ import { Input } from './ui/input';
 import { Select } from './ui/select';
 import { UserPlus, UserCheck, Phone, Globe, CreditCard, BookOpen, Building2, Briefcase } from 'lucide-react';
 import { CloudinaryPhotoUpload } from './cloudinary-photo-upload';
+import { FormSection } from '@/components/shared';
 
 const employeeSchema = z.object({
   employeeName: z

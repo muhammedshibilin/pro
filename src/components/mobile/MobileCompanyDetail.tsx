@@ -2,16 +2,19 @@
 
 import React, { useState } from 'react';
 import { Company, Document } from '@/types';
-import { ArrowLeft, Edit2, Trash2, Phone, Mail, FileText, Plus, FileCheck, ShieldCheck, Eye, X } from 'lucide-react';
+import { Edit2, Trash2, Phone, Mail, FileText, Plus, FileCheck, ShieldCheck, Eye, X, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { formatDate, getDaysRemaining } from '@/lib/utils';
+import { formatDate, getDaysRemaining, cn } from '@/lib/utils';
 import { calculateCompanyDocumentStatus, COMPANY_DOC_STATUS_META } from '@/lib/status-calculator';
-import { cn } from '@/lib/utils';
 import MobileCompanyForm from './MobileCompanyForm';
 import { DocumentFormModal } from '@/components/document-form-modal';
-import { DeleteConfirmModal } from '@/components/delete-confirm-modal';
 import { useDeleteCompany } from '@/hooks/use-companies';
 import { useDocuments } from '@/hooks/use-documents';
+import {
+  PageHeader,
+  FormSection,
+  ConfirmationDialog,
+} from '@/components/shared';
 
 interface MobileCompanyDetailProps {
   company: Company;
@@ -73,16 +76,27 @@ export default function MobileCompanyDetail({ company, onBack }: MobileCompanyDe
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col w-full max-w-full overflow-hidden animate-in slide-in-from-right">
-      {/* Top App Bar */}
-      <header className="flex items-center justify-between px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 border-b bg-card shadow-xs shrink-0">
-        <Button variant="ghost" size="icon" onClick={onBack} className="h-10 w-10 shrink-0">
-          <ArrowLeft className="w-5 h-5" />
-          <span className="sr-only">Back</span>
-        </Button>
-        <h1 className="text-base sm:text-lg font-bold text-foreground truncate px-2">Company Details</h1>
-        <div className="w-10 shrink-0" />
-      </header>
+    <div className="fixed inset-0 z-[100] bg-background flex flex-col w-full max-w-full overflow-hidden animate-in slide-in-from-right">
+      {/* Top App Bar with Top-Right Icon-Only Actions */}
+      <PageHeader
+        title="Company Details"
+        onBack={onBack}
+        primaryAction={{
+          icon: Edit2,
+          title: "Edit Company Details",
+          onClick: () => setIsEditOpen(true),
+          variant: "outline",
+        }}
+        secondaryActions={[
+          {
+            icon: Trash2,
+            title: "Delete Company",
+            variant: "destructive",
+            onClick: () => setIsDeleteOpen(true),
+          },
+        ]}
+        className="rounded-none border-x-0 border-t-0 p-3 bg-card shadow-xs shrink-0"
+      />
 
       {/* Main Content Scroll View */}
       <main className="flex-1 overflow-y-auto p-4 space-y-4 pb-[max(7rem,calc(env(safe-area-inset-bottom)+6rem))]">
@@ -105,130 +119,101 @@ export default function MobileCompanyDetail({ company, onBack }: MobileCompanyDe
         </div>
 
         {/* Commercial Registration (CR) Details */}
-        <div className="bg-card rounded-2xl border border-blue-500/20 p-4 shadow-xs space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-border/40">
-            <h3 className="font-bold text-sm flex items-center gap-2 text-blue-600 dark:text-blue-400 min-w-0">
-              <FileCheck className="w-4 h-4 shrink-0" />
-              <span>Commercial Registration (CR)</span>
-            </h3>
-            {company.crPhoto && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs gap-1.5 text-primary border-primary/20 hover:bg-primary/10"
-                onClick={() => setViewingPhoto({ url: company.crPhoto!, title: `${company.companyName} — CR Certificate` })}
-              >
-                <Eye className="w-3.5 h-3.5" />
-                <span>View Photo</span>
-              </Button>
-            )}
+        <FormSection
+          title="Commercial Registration (CR)"
+          icon={FileCheck}
+          variant="blue"
+        >
+          <div className="flex justify-between items-center pb-2 border-b border-border/40">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase">CR Number</span>
+            <strong className="font-mono text-sm font-bold text-foreground">{company.crNumber || '—'}</strong>
           </div>
-          
-          <div className="space-y-2.5 text-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">CR Number</span>
-              <strong className="font-mono text-sm font-bold text-foreground break-all">{company.crNumber || '—'}</strong>
-            </div>
-            
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 pt-1.5 border-t border-border/40">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">CR Expiry Status</span>
-              <div>{renderExpiryBadge(company.crExpiry)}</div>
-            </div>
+          <div className="flex justify-between items-center pt-1">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase">Expiry Status</span>
+            <div>{renderExpiryBadge(company.crExpiry)}</div>
           </div>
-        </div>
+          {company.crPhoto && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full h-8 text-xs gap-1.5 text-primary border-primary/20 mt-2"
+              onClick={() => setViewingPhoto({ url: company.crPhoto!, title: `${company.companyName} — CR Certificate` })}
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span>View CR Photo</span>
+            </Button>
+          )}
+        </FormSection>
 
         {/* Trade License Details */}
-        <div className="bg-card rounded-2xl border border-emerald-500/20 p-4 shadow-xs space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-border/40">
-            <h3 className="font-bold text-sm flex items-center gap-2 text-emerald-600 dark:text-emerald-400 min-w-0">
-              <ShieldCheck className="w-4 h-4 shrink-0" />
-              <span>Trade License Details</span>
-            </h3>
-            {company.licensePhoto && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs gap-1.5 text-primary border-primary/20 hover:bg-primary/10"
-                onClick={() => setViewingPhoto({ url: company.licensePhoto!, title: `${company.companyName} — Trade License` })}
-              >
-                <Eye className="w-3.5 h-3.5" />
-                <span>View Photo</span>
-              </Button>
-            )}
+        <FormSection
+          title="Trade License Details"
+          icon={ShieldCheck}
+          variant="emerald"
+        >
+          <div className="flex justify-between items-center pb-2 border-b border-border/40">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase">License Number</span>
+            <strong className="font-mono text-sm font-bold text-foreground">{company.licenseNumber || '—'}</strong>
           </div>
-          
-          <div className="space-y-2.5 text-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">License Number</span>
-              <strong className="font-mono text-sm font-bold text-foreground break-all">{company.licenseNumber || '—'}</strong>
-            </div>
-            
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 pt-1.5 border-t border-border/40">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">License Expiry Status</span>
-              <div>{renderExpiryBadge(company.licenseExpiry)}</div>
-            </div>
+          <div className="flex justify-between items-center pt-1">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase">Expiry Status</span>
+            <div>{renderExpiryBadge(company.licenseExpiry)}</div>
           </div>
-        </div>
+          {company.licensePhoto && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full h-8 text-xs gap-1.5 text-primary border-primary/20 mt-2"
+              onClick={() => setViewingPhoto({ url: company.licensePhoto!, title: `${company.companyName} — Trade License` })}
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span>View License Photo</span>
+            </Button>
+          )}
+        </FormSection>
 
-        {/* Computer Card (Establishment Card) Details */}
-        <div className="bg-card rounded-2xl border border-purple-500/20 p-4 shadow-xs space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-border/40">
-            <h3 className="font-bold text-sm flex items-center gap-2 text-purple-600 dark:text-purple-400 min-w-0">
-              <FileText className="w-4 h-4 shrink-0" />
-              <span>Computer Card (Establishment Card)</span>
-            </h3>
-            {company.computerCardPhoto && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs gap-1.5 text-primary border-primary/20 hover:bg-primary/10"
-                onClick={() => setViewingPhoto({ url: company.computerCardPhoto!, title: `${company.companyName} — Computer Card` })}
-              >
-                <Eye className="w-3.5 h-3.5" />
-                <span>View Photo</span>
-              </Button>
-            )}
+        {/* Computer Card Details */}
+        <FormSection
+          title="Computer Card (Establishment Card)"
+          icon={FileText}
+          variant="purple"
+        >
+          <div className="flex justify-between items-center pb-2 border-b border-border/40">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase">Computer Card Number</span>
+            <strong className="font-mono text-sm font-bold text-foreground">{company.computerCardNumber || '—'}</strong>
           </div>
-          
-          <div className="space-y-2.5 text-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Computer Card Number</span>
-              <strong className="font-mono text-sm font-bold text-foreground break-all">{company.computerCardNumber || '—'}</strong>
-            </div>
-            
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 pt-1.5 border-t border-border/40">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Card Expiry</span>
-              <span className="font-medium text-foreground">
-                {company.licenseExpiry ? `Same as License (${formatDate(company.licenseExpiry)})` : 'Inherits Trade License Expiry'}
-              </span>
-            </div>
-
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 pt-1.5 border-t border-border/40">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Compliance Status</span>
-              <div>{renderExpiryBadge(company.licenseExpiry)}</div>
-            </div>
+          <div className="flex justify-between items-center pt-1">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase">Compliance Status</span>
+            <div>{renderExpiryBadge(company.licenseExpiry)}</div>
           </div>
-        </div>
+          {company.computerCardPhoto && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full h-8 text-xs gap-1.5 text-primary border-primary/20 mt-2"
+              onClick={() => setViewingPhoto({ url: company.computerCardPhoto!, title: `${company.companyName} — Computer Card` })}
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span>View Computer Card Photo</span>
+            </Button>
+          )}
+        </FormSection>
 
         {/* Contact Vectors */}
-        <div className="bg-card rounded-2xl border p-4 shadow-xs space-y-3">
-          <h3 className="font-bold text-sm flex items-center gap-2 text-foreground">
-            <Phone className="w-4 h-4 text-primary shrink-0" />
-            <span>Contact Information</span>
-          </h3>
-          <div className="space-y-2.5 text-xs">
+        <FormSection title="Contact Information" icon={Phone}>
+          <div className="space-y-2 text-xs">
             <div className="flex items-center gap-3">
               <Phone className="w-4 h-4 text-muted-foreground shrink-0" />
-              <span className="font-mono text-foreground break-all">{company.phone || 'N/A'}</span>
+              <span className="font-mono text-foreground">{company.phone || 'N/A'}</span>
             </div>
             <div className="flex items-center gap-3">
               <Mail className="w-4 h-4 text-muted-foreground shrink-0" />
-              <span className="text-foreground break-all">{company.email || 'N/A'}</span>
+              <span className="text-foreground">{company.email || 'N/A'}</span>
             </div>
           </div>
-        </div>
+        </FormSection>
 
-        {/* Company Documents Section */}
+        {/* Documents Section */}
         <div className="bg-card rounded-2xl border p-4 shadow-xs space-y-3">
           <div className="flex items-center justify-between gap-2 pb-1 border-b border-border/40">
             <h3 className="font-bold text-sm flex items-center gap-2 text-foreground min-w-0">
@@ -265,8 +250,8 @@ export default function MobileCompanyDetail({ company, onBack }: MobileCompanyDe
         </div>
       </main>
 
-      {/* Bottom Sticky Action Bar */}
-      <footer className="fixed bottom-0 left-0 right-0 p-4 bg-card/95 backdrop-blur-lg border-t border-border/80 flex gap-3 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-xl z-40">
+      {/* Sticky Bottom Actions Bar */}
+      <footer className="fixed bottom-0 left-0 right-0 p-4 bg-card/95 backdrop-blur-lg border-t border-border/80 flex gap-3 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-xl z-[100]">
         <Button 
           variant="outline" 
           className="flex-1 h-12 text-sm font-semibold text-rose-600 hover:bg-rose-500/10 border-rose-500/30" 
@@ -284,12 +269,9 @@ export default function MobileCompanyDetail({ company, onBack }: MobileCompanyDe
         </Button>
       </footer>
 
-      {/* Full Photo Preview Modal */}
+      {/* Full Photo Modal */}
       {viewingPhoto && (
-        <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={() => setViewingPhoto(null)}
-        >
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setViewingPhoto(null)}>
           <div className="relative w-full max-w-lg max-h-[85vh] bg-card rounded-2xl p-4 border shadow-2xl space-y-3 overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b pb-2">
               <span className="font-bold text-xs truncate text-foreground pr-2">{viewingPhoto.title}</span>
@@ -307,7 +289,7 @@ export default function MobileCompanyDetail({ company, onBack }: MobileCompanyDe
         <MobileCompanyForm company={company} onBack={() => setIsEditOpen(false)} />
       )}
       <DocumentFormModal document={selectedDoc} open={isDocFormOpen} onOpenChange={setIsDocFormOpen} />
-      <DeleteConfirmModal
+      <ConfirmationDialog
         open={isDeleteOpen}
         onOpenChange={setIsDeleteOpen}
         title="Delete Corporate Account"

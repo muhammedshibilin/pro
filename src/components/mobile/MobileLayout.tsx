@@ -30,11 +30,13 @@ export default function MobileLayout({
         {children}
       </main>
 
-      <MobileFAB 
-        onAddEmployee={onAddEmployee}
-        onAddCompany={onAddCompany}
-        onAddDocument={onAddDocument}
-      />
+      {activeView === 'dashboard' && (
+        <MobileFAB 
+          onAddEmployee={onAddEmployee}
+          onAddCompany={onAddCompany}
+          onAddDocument={onAddDocument}
+        />
+      )}
 
       <MobileBottomNav 
         activeView={activeView}
