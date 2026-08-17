@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 export interface StatusFilterOption {
   id: string;
   label: string;
-  count: number;
+  count?: number;
   variant?: StatusVariant;
   colorClass?: string;
 }
@@ -45,7 +45,7 @@ export function SearchFilterBar({
             value={searchValue}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder={searchPlaceholder}
-            className="w-full h-11 pl-10 rounded-xl bg-card border-border/80 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-primary shadow-xs"
+            className="w-full h-12 pl-10.5 rounded-xl bg-card border-border/80 text-sm font-medium focus:ring-2 focus:ring-primary shadow-xs"
           />
         </div>
 
@@ -58,7 +58,7 @@ export function SearchFilterBar({
 
       {/* Horizontal Status Chips Bar */}
       {statusFilters.length > 0 && onStatusFilterChange && (
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+        <div className="flex items-center gap-2.5 overflow-x-auto pb-1 pt-0.5 scrollbar-hide px-0.5">
           {statusFilters.map((chip) => (
             <StatusCard
               key={chip.id}
@@ -69,7 +69,6 @@ export function SearchFilterBar({
               colorClass={chip.colorClass}
               isActive={(activeStatusFilter || 'ALL') === chip.id}
               onClick={() => onStatusFilterChange(chip.id)}
-              className="shrink-0"
             />
           ))}
         </div>

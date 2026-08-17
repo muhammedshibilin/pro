@@ -55,7 +55,7 @@ export default function MobileSearch({ open, onOpenChange, onSelectEmployee, onS
     <div className="fixed inset-0 z-[100] bg-background flex flex-col w-full max-w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200">
       {/* Search Header */}
       <header className="flex items-center gap-2 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 border-b bg-card shadow-xs shrink-0">
-        <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="h-10 w-10 shrink-0">
+        <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="h-11 w-11 min-h-[44px] min-w-[44px] shrink-0">
           <ArrowLeft className="w-5 h-5" />
           <span className="sr-only">Back</span>
         </Button>

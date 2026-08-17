@@ -40,17 +40,17 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        "flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card/60 backdrop-blur-md p-4 sm:p-6 rounded-2xl border border-border/80 shadow-xs transition-all",
+        "flex flex-row items-center justify-between gap-2 bg-card/60 backdrop-blur-md p-3 sm:p-5 rounded-2xl border border-border/80 shadow-xs transition-all w-full max-w-full overflow-hidden",
         className
       )}
     >
-      <div className="flex items-start gap-3 min-w-0 flex-1">
+      <div className="flex items-center gap-2 min-w-0 flex-1">
         {onBack && (
           <Button
             variant="ghost"
             size="icon"
             onClick={onBack}
-            className="h-10 w-10 shrink-0 mt-0.5"
+            className="h-11 w-11 min-h-[44px] min-w-[44px] shrink-0"
             aria-label="Back"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -58,27 +58,27 @@ export function PageHeader({
         )}
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
             {Icon && <Icon className="w-5 h-5 text-primary shrink-0" />}
-            <h1 className="text-xl sm:text-2xl font-display font-extrabold tracking-tight text-foreground truncate">
+            <h1 className="text-base sm:text-xl font-display font-extrabold tracking-tight text-foreground truncate">
               {title}
             </h1>
             {badgeCount !== undefined && (
-              <span className="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 shrink-0">
+              <span className="text-[10px] sm:text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 shrink-0">
                 {badgeCount} {badgeLabel || 'Total'}
               </span>
             )}
           </div>
           {description && (
-            <p className="text-muted-foreground text-xs sm:text-sm mt-1 break-words">
+            <p className="text-muted-foreground text-xs mt-0.5 break-words line-clamp-1">
               {description}
             </p>
           )}
         </div>
       </div>
 
-      {/* Top-Right Action Controls */}
-      <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+      {/* Top-Right Action Controls with >= 44px Touch Targets */}
+      <div className="flex items-center gap-1.5 shrink-0">
         {secondaryActions.map((action, idx) => {
           const ActionIcon = action.icon;
           return (
@@ -90,10 +90,13 @@ export function PageHeader({
               onClick={action.onClick}
               disabled={action.disabled}
               title={action.title || action.label}
-              className={cn("rounded-xl h-9 text-xs font-semibold gap-1.5", !action.label && "w-9 p-0")}
+              className={cn(
+                "rounded-xl h-11 min-h-[44px] text-xs font-semibold gap-1.5",
+                action.label ? "px-3" : "w-11 min-w-[44px] p-0"
+              )}
             >
               {ActionIcon && <ActionIcon className="h-4 w-4 shrink-0" />}
-              {action.label && <span>{action.label}</span>}
+              {action.label && <span className="hidden xs:inline">{action.label}</span>}
             </Button>
           );
         })}
@@ -106,7 +109,10 @@ export function PageHeader({
             onClick={primaryAction.onClick}
             disabled={primaryAction.disabled}
             title={primaryAction.title || primaryAction.label}
-            className={cn("rounded-xl h-9 text-xs font-bold gap-1.5 shrink-0", primaryAction.label ? "px-4 shadow-md shadow-primary/20" : "w-9 p-0")}
+            className={cn(
+              "rounded-xl h-11 min-h-[44px] text-xs font-bold gap-1.5 shrink-0",
+              primaryAction.label ? "px-3.5 shadow-md shadow-primary/20" : "w-11 min-w-[44px] p-0"
+            )}
           >
             {primaryAction.icon && <primaryAction.icon className="h-4 w-4 shrink-0" />}
             {primaryAction.label && <span>{primaryAction.label}</span>}

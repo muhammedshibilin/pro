@@ -2,13 +2,13 @@
 
 import React, { useState } from 'react';
 import { Employee } from '@/types';
-import { ArrowLeft, UserPlus, Phone, Globe, CreditCard, BookOpen, Building2, Briefcase, UserCheck, Check } from 'lucide-react';
+import { ArrowLeft, UserPlus, UserCheck, Phone, Globe, CreditCard, BookOpen, Building2, Briefcase, Check, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCreateEmployee, useUpdateEmployee } from '@/hooks/use-employees';
 import { useCompanies } from '@/hooks/use-companies';
 import { CloudinaryPhotoUpload } from '../cloudinary-photo-upload';
-import { FormSection } from '@/components/shared';
+import { FormSection, FormField } from '@/components/shared';
 
 interface MobileEmployeeFormProps {
   employee?: Employee;
@@ -81,7 +81,7 @@ export default function MobileEmployeeForm({ employee, onBack }: MobileEmployeeF
       {/* Top App Bar with prominent Save button */}
       <header className="flex items-center justify-between px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 border-b bg-card shadow-xs shrink-0 z-50">
         <div className="flex items-center min-w-0 flex-1 pr-2">
-          <Button variant="ghost" size="icon" onClick={onBack} className="h-10 w-10 shrink-0">
+          <Button variant="ghost" size="icon" onClick={onBack} className="h-11 w-11 shrink-0">
             <ArrowLeft className="w-5 h-5" />
             <span className="sr-only">Back</span>
           </Button>
@@ -96,7 +96,7 @@ export default function MobileEmployeeForm({ employee, onBack }: MobileEmployeeF
           onClick={handleSubmit}
           disabled={isSaving}
           size="sm"
-          className="h-9 px-3.5 text-xs font-bold rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/20 shrink-0 gap-1.5"
+          className="h-10 px-4 text-xs font-bold rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/20 shrink-0 gap-1.5 min-h-[40px]"
         >
           <Check className="w-4 h-4" />
           <span>{isSaving ? 'Saving...' : 'Save'}</span>
@@ -110,208 +110,177 @@ export default function MobileEmployeeForm({ employee, onBack }: MobileEmployeeF
         </div>
       )}
 
-      {/* Form Fields Scroll Container */}
+      {/* Single Column Mobile Form Container */}
       <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 pb-[max(7rem,calc(env(safe-area-inset-bottom)+6rem))] space-y-4">
-        {/* Core Info & Role */}
-        <div className="p-4 bg-card border rounded-2xl space-y-3.5 shadow-xs">
-          <div className="flex items-center gap-2 text-xs font-bold text-foreground">
-            <UserCheck className="w-4 h-4 text-primary" />
-            <span>Profile & Role Information</span>
-          </div>
+        {/* Section 1: Profile & Role */}
+        <FormSection title="Profile & Role Information" icon={UserCheck}>
+          <div className="space-y-4 grid grid-cols-1">
+            <FormField label="Employee Full Name" required icon={UserCheck}>
+              <Input 
+                required 
+                value={formData.employeeName}
+                onChange={(e) => handleChange('employeeName', e.target.value)}
+                className="w-full h-12 text-sm font-semibold rounded-xl bg-background"
+                placeholder="e.g. Ahmed Ali"
+              />
+            </FormField>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-foreground">EMPLOYEE FULL NAME *</label>
-            <Input 
-              required 
-              value={formData.employeeName}
-              onChange={(e) => handleChange('employeeName', e.target.value)}
-              className="h-12 text-sm rounded-xl font-semibold bg-background"
-              placeholder="e.g. Ahmed Ali"
-            />
-          </div>
+            <FormField label="Role" required>
+              <select 
+                value={formData.role}
+                onChange={(e) => handleChange('role', e.target.value)}
+                className="w-full h-12 px-3.5 py-2 bg-background border border-input rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="EMPLOYEE">Employee</option>
+                <option value="OWNER">Owner / Executive</option>
+              </select>
+            </FormField>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-foreground">ROLE *</label>
-            <select 
-              value={formData.role}
-              onChange={(e) => handleChange('role', e.target.value)}
-              className="w-full h-12 px-3 py-2 bg-background border border-input rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-ring"
+            <FormField label="Registered Company (Sponsor)" required icon={Building2}>
+              <select 
+                required
+                value={formData.companyId}
+                onChange={(e) => handleChange('companyId', e.target.value)}
+                className="w-full h-12 px-3.5 py-2 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring truncate"
+              >
+                <option value="" disabled>Select registered sponsoring company</option>
+                {companies.map(c => (
+                  <option key={c.id} value={c.id}>{c.companyName}</option>
+                ))}
+              </select>
+            </FormField>
+
+            <FormField 
+              label="Current Working Company" 
+              icon={Briefcase}
+              hint="Select if employee is assigned or subcontracted to another firm"
             >
-              <option value="EMPLOYEE">Employee</option>
-              <option value="OWNER">Owner / Executive</option>
-            </select>
-          </div>
+              <select 
+                value={formData.currentWorkingCompanyId}
+                onChange={(e) => handleChange('currentWorkingCompanyId', e.target.value)}
+                className="w-full h-12 px-3.5 py-2 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring truncate"
+              >
+                <option value="">Same as Registered Company (Default)</option>
+                {companies.map(c => (
+                  <option key={c.id} value={c.id}>{c.companyName}</option>
+                ))}
+              </select>
+            </FormField>
 
-          <div className="space-y-1.5 pt-1 border-t border-border/40">
-            <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
-              <Building2 className="w-3.5 h-3.5 text-primary" />
-              <span>REGISTERED COMPANY (SPONSOR) *</span>
-            </label>
-            <select 
-              required
-              value={formData.companyId}
-              onChange={(e) => handleChange('companyId', e.target.value)}
-              className="w-full h-12 px-3 py-2 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              <option value="" disabled>Select registered sponsoring company</option>
-              {companies.map(c => (
-                <option key={c.id} value={c.id}>{c.companyName}</option>
-              ))}
-            </select>
+            <FormField label="Employment Status">
+              <select 
+                value={formData.status}
+                onChange={(e) => handleChange('status', e.target.value)}
+                className="w-full h-12 px-3.5 py-2 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="Active">Active (Compliant)</option>
+                <option value="On Leave">On Leave</option>
+                <option value="Terminated">Terminated</option>
+              </select>
+            </FormField>
           </div>
+        </FormSection>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
-              <Briefcase className="w-3.5 h-3.5 text-blue-600" />
-              <span>CURRENT WORKING COMPANY (OPTIONAL)</span>
-            </label>
-            <select 
-              value={formData.currentWorkingCompanyId}
-              onChange={(e) => handleChange('currentWorkingCompanyId', e.target.value)}
-              className="w-full h-12 px-3 py-2 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              <option value="">Same as Registered Company (Default)</option>
-              {companies.map(c => (
-                <option key={c.id} value={c.id}>{c.companyName}</option>
-              ))}
-            </select>
-            <p className="text-[11px] text-muted-foreground">Select if employee is assigned or subcontracted to another firm</p>
-          </div>
+        {/* Section 2: Qatar ID (QID) Details */}
+        <FormSection title="Qatar ID (QID) Details" icon={CreditCard} variant="blue">
+          <div className="space-y-4 grid grid-cols-1">
+            <FormField label="QID Number" required icon={CreditCard}>
+              <Input 
+                required
+                value={formData.qidNumber}
+                onChange={(e) => handleChange('qidNumber', e.target.value)}
+                className="w-full h-12 text-sm font-mono rounded-xl bg-background"
+                placeholder="e.g. 28412345678"
+              />
+            </FormField>
 
-          <div className="space-y-1.5 pt-1">
-            <label className="text-xs font-bold text-foreground">EMPLOYMENT STATUS</label>
-            <select 
-              value={formData.status}
-              onChange={(e) => handleChange('status', e.target.value)}
-              className="w-full h-12 px-3 py-2 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              <option value="Active">Active (Compliant)</option>
-              <option value="On Leave">On Leave</option>
-              <option value="Terminated">Terminated</option>
-            </select>
-          </div>
-        </div>
+            <FormField label="QID Expiry Date" required>
+              <Input 
+                required
+                type="date"
+                value={formData.qidExpiry}
+                onChange={(e) => handleChange('qidExpiry', e.target.value)}
+                className="w-full h-12 text-sm font-mono rounded-xl bg-background"
+              />
+            </FormField>
 
-        {/* Contact Numbers */}
-        <div className="p-4 bg-gradient-to-br from-amber-500/5 to-orange-500/5 border border-amber-500/20 rounded-2xl space-y-3.5 shadow-xs">
-          <div className="flex items-center gap-2 text-xs font-bold text-amber-700 dark:text-amber-400">
-            <Phone className="w-4 h-4 shrink-0" />
-            <span>Contact Information</span>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
-              <Phone className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-              <span>LOCAL / QATAR CONTACT NUMBER</span>
-            </label>
-            <Input 
-              type="tel"
-              value={formData.phone}
-              onChange={(e) => handleChange('phone', e.target.value)}
-              className="h-12 text-sm rounded-xl font-mono bg-background"
-              placeholder="+974 5511 2233"
+            <CloudinaryPhotoUpload
+              label="Qatar ID Photo / Scan"
+              value={formData.qidPhoto}
+              onChange={(url) => handleChange('qidPhoto', url)}
+              folder="employee_qids"
+              placeholderText="Upload Qatar ID scan or photo"
             />
           </div>
+        </FormSection>
 
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
-              <Globe className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-              <span>NATIVE RELATIVE CONTACT (EMERGENCY)</span>
-            </label>
-            <Input 
-              type="tel"
-              value={formData.nativeRelativePhone}
-              onChange={(e) => handleChange('nativeRelativePhone', e.target.value)}
-              className="h-12 text-sm rounded-xl font-mono bg-background"
-              placeholder="+91 98470 12345 (Father / Spouse)"
+        {/* Section 3: Contact Information */}
+        <FormSection title="Contact Information" icon={Phone} variant="amber">
+          <div className="space-y-4 grid grid-cols-1">
+            <FormField label="Local / Qatar Contact Number" icon={Phone}>
+              <Input 
+                type="tel"
+                value={formData.phone}
+                onChange={(e) => handleChange('phone', e.target.value)}
+                className="w-full h-12 text-sm font-mono rounded-xl bg-background"
+                placeholder="+974 5511 2233"
+              />
+            </FormField>
+
+            <FormField label="Native Relative Contact (Emergency)" icon={Globe}>
+              <Input 
+                type="tel"
+                value={formData.nativeRelativePhone}
+                onChange={(e) => handleChange('nativeRelativePhone', e.target.value)}
+                className="w-full h-12 text-sm font-mono rounded-xl bg-background"
+                placeholder="+91 98470 12345 (Father / Spouse)"
+              />
+            </FormField>
+          </div>
+        </FormSection>
+
+        {/* Section 4: Passport Document Details */}
+        <FormSection title="Passport Document Details" icon={BookOpen} variant="emerald">
+          <div className="space-y-4 grid grid-cols-1">
+            <FormField label="Passport Number" icon={BookOpen}>
+              <Input 
+                value={formData.passportNumber}
+                onChange={(e) => handleChange('passportNumber', e.target.value)}
+                className="w-full h-12 text-sm font-mono rounded-xl bg-background"
+                placeholder="e.g. N1234567"
+              />
+            </FormField>
+
+            <FormField label="Passport Expiry Date">
+              <Input 
+                type="date"
+                value={formData.passportExpiry}
+                onChange={(e) => handleChange('passportExpiry', e.target.value)}
+                className="w-full h-12 text-sm font-mono rounded-xl bg-background"
+              />
+            </FormField>
+
+            <CloudinaryPhotoUpload
+              label="Passport Photo / Scan"
+              value={formData.passportPhoto}
+              onChange={(url) => handleChange('passportPhoto', url)}
+              folder="employee_passports"
+              placeholderText="Upload Passport scan or photo"
             />
           </div>
-        </div>
+        </FormSection>
 
-        {/* Qatar ID Details */}
-        <div className="p-4 bg-gradient-to-br from-blue-500/5 to-indigo-500/5 border border-blue-500/20 rounded-2xl space-y-3.5 shadow-xs">
-          <div className="flex items-center gap-2 text-xs font-bold text-blue-700 dark:text-blue-400">
-            <CreditCard className="w-4 h-4 shrink-0" />
-            <span>Qatar ID (QID) Details</span>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold text-muted-foreground">QID NUMBER *</label>
+        {/* Section 5: Notes */}
+        <FormSection title="Operational Notes" icon={FileText}>
+          <FormField label="Notes / Designation">
             <Input 
-              required
-              value={formData.qidNumber}
-              onChange={(e) => handleChange('qidNumber', e.target.value)}
-              className="h-12 text-sm rounded-xl font-mono bg-background"
-              placeholder="e.g. 28412345678"
+              value={formData.notes}
+              onChange={(e) => handleChange('notes', e.target.value)}
+              className="w-full h-12 text-sm rounded-xl bg-background"
+              placeholder="Designation, visa notes, profession..."
             />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold text-muted-foreground">QID EXPIRY DATE *</label>
-            <Input 
-              required
-              type="date"
-              value={formData.qidExpiry}
-              onChange={(e) => handleChange('qidExpiry', e.target.value)}
-              className="h-12 text-sm rounded-xl font-mono bg-background"
-            />
-          </div>
-
-          <CloudinaryPhotoUpload
-            label="Qatar ID Photo / Scan"
-            value={formData.qidPhoto}
-            onChange={(url) => handleChange('qidPhoto', url)}
-            folder="employee_qids"
-            placeholderText="Upload Qatar ID scan or photo"
-          />
-        </div>
-
-        {/* Passport Details */}
-        <div className="p-4 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 border border-emerald-500/20 rounded-2xl space-y-3.5 shadow-xs">
-          <div className="flex items-center gap-2 text-xs font-bold text-emerald-700 dark:text-emerald-400">
-            <BookOpen className="w-4 h-4 shrink-0" />
-            <span>Passport Document Details</span>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold text-muted-foreground">PASSPORT NUMBER</label>
-            <Input 
-              value={formData.passportNumber}
-              onChange={(e) => handleChange('passportNumber', e.target.value)}
-              className="h-12 text-sm rounded-xl font-mono bg-background"
-              placeholder="e.g. N1234567"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold text-muted-foreground">PASSPORT EXPIRY DATE</label>
-            <Input 
-              type="date"
-              value={formData.passportExpiry}
-              onChange={(e) => handleChange('passportExpiry', e.target.value)}
-              className="h-12 text-sm rounded-xl font-mono bg-background"
-            />
-          </div>
-
-          <CloudinaryPhotoUpload
-            label="Passport Photo / Scan"
-            value={formData.passportPhoto}
-            onChange={(url) => handleChange('passportPhoto', url)}
-            folder="employee_passports"
-            placeholderText="Upload Passport scan or photo"
-          />
-        </div>
-
-        {/* Notes */}
-        <div className="p-4 bg-card border rounded-2xl space-y-2 shadow-xs">
-          <label className="text-xs font-bold text-foreground">Operational Notes / Designation</label>
-          <Input 
-            value={formData.notes}
-            onChange={(e) => handleChange('notes', e.target.value)}
-            className="h-12 text-sm rounded-xl bg-background"
-            placeholder="Designation, visa notes, profession..."
-          />
-        </div>
+          </FormField>
+        </FormSection>
       </form>
 
       {/* Bottom Sticky Submit Button */}
@@ -320,7 +289,7 @@ export default function MobileEmployeeForm({ employee, onBack }: MobileEmployeeF
           type="button" 
           onClick={handleSubmit}
           disabled={isSaving}
-          className="w-full h-12 text-base font-bold rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/20 gap-2"
+          className="w-full h-12 min-h-[48px] text-base font-bold rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/20 gap-2"
         >
           <Check className="w-5 h-5" />
           <span>{isSaving ? 'Saving...' : employee ? 'Update Employee Details' : 'Save Employee'}</span>

@@ -4,6 +4,7 @@ export * from './search-filter-bar';
 export * from './data-table';
 export * from './entity-card';
 export * from './form-section';
+export * from './form-field';
 export * from './action-menu';
 export * from './empty-state';
 export * from './loading-state';

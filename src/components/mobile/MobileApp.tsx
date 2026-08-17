@@ -23,8 +23,8 @@ export default function MobileApp() {
   const renderView = () => {
     switch (appData.activeView) {
       case 'dashboard': return <MobileDashboard appData={appData} />;
-      case 'employees': return <MobileEmployeeList appData={appData} />;
-      case 'companies': return <MobileCompanyList appData={appData} />;
+      case 'employees': return <MobileEmployeeList appData={appData} onAddEmployee={() => setIsEmployeeFormOpen(true)} />;
+      case 'companies': return <MobileCompanyList appData={appData} onAddCompany={() => setIsCompanyFormOpen(true)} />;
       case 'alerts': return <MobileAlertList appData={appData} />;
       case 'settings': return <MobileSettings appData={appData} />;
       default: return <MobileDashboard appData={appData} />;
