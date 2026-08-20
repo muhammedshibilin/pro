@@ -13,6 +13,7 @@ interface MobileLayoutProps {
   onAddEmployee: () => void;
   onAddCompany: () => void;
   onAddDocument: () => void;
+  isHideNav?: boolean;
 }
 
 export default function MobileLayout({
@@ -23,6 +24,7 @@ export default function MobileLayout({
   onAddEmployee,
   onAddCompany,
   onAddDocument,
+  isHideNav = false,
 }: MobileLayoutProps) {
   return (
     <div className="flex flex-col h-[100dvh] w-full bg-background overflow-hidden relative">
@@ -30,7 +32,7 @@ export default function MobileLayout({
         {children}
       </main>
 
-      {activeView === 'dashboard' && (
+      {!isHideNav && activeView === 'dashboard' && (
         <MobileFAB 
           onAddEmployee={onAddEmployee}
           onAddCompany={onAddCompany}
@@ -38,11 +40,14 @@ export default function MobileLayout({
         />
       )}
 
-      <MobileBottomNav 
-        activeView={activeView}
-        onViewChange={onViewChange}
-        alertCount={alertCount}
-      />
+      {!isHideNav && (
+        <MobileBottomNav 
+          activeView={activeView}
+          onViewChange={onViewChange}
+          alertCount={alertCount}
+        />
+      )}
     </div>
   );
 }
+

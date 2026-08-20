@@ -106,16 +106,18 @@ export default function MobileCompanyForm({ company, onBack }: MobileCompanyForm
   return (
     <div className="fixed inset-0 z-[100] bg-background flex flex-col w-full max-w-full overflow-hidden animate-in slide-in-from-bottom-full">
       {/* Top App Bar with prominent Save Button */}
-      <header className="flex items-center justify-between px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 border-b bg-card shadow-xs shrink-0 z-50">
-        <div className="flex items-center min-w-0 flex-1 pr-2">
+      <header className="flex items-center justify-between gap-2 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 border-b bg-card shadow-xs shrink-0 z-50">
+        <div className="flex items-center gap-1 min-w-0 flex-1">
           <Button variant="ghost" size="icon" onClick={onBack} className="h-11 w-11 shrink-0">
             <ArrowLeft className="w-5 h-5" />
             <span className="sr-only">Back</span>
           </Button>
-          <h1 className="text-base sm:text-lg font-bold ml-1 flex items-center gap-2 truncate">
+          <div className="min-w-0 flex-1 flex items-center gap-2">
             <Building2 className="w-5 h-5 text-primary shrink-0" />
-            <span className="truncate">{company ? 'Edit Company Details' : 'Register Corporate Entity'}</span>
-          </h1>
+            <h1 className="text-sm sm:text-base font-bold text-foreground truncate min-w-0">
+              {company ? 'Edit Company Details' : 'Register Corporate Entity'}
+            </h1>
+          </div>
         </div>
 
         <Button 

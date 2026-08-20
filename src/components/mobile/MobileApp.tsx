@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useAppData } from '@/hooks/use-app-data';
+import { useAppData, AppView } from '@/hooks/use-app-data';
 import MobileLayout from './MobileLayout';
 import MobileDashboard from './MobileDashboard';
 import MobileEmployeeList from './MobileEmployeeList';
@@ -19,6 +19,18 @@ export default function MobileApp() {
   
   const [isEmployeeFormOpen, setIsEmployeeFormOpen] = useState(false);
   const [isCompanyFormOpen, setIsCompanyFormOpen] = useState(false);
+
+  const handleTabChange = (view: AppView) => {
+    // When changing tabs, close all open forms and detail overlays cleanly
+    setIsEmployeeFormOpen(false);
+    setIsCompanyFormOpen(false);
+    appData.setIsDetailsOpen(false);
+    appData.setSelectedEmployee(undefined);
+    appData.setIsDocFormOpen(false);
+    appData.setActiveView(view);
+  };
+
+  const isFormOrOverlayActive = isEmployeeFormOpen || isCompanyFormOpen || appData.isDetailsOpen || appData.isDocFormOpen;
   
   const renderView = () => {
     switch (appData.activeView) {
@@ -34,11 +46,12 @@ export default function MobileApp() {
   return (
     <MobileLayout
       activeView={appData.activeView}
-      onViewChange={appData.setActiveView}
+      onViewChange={handleTabChange}
       alertCount={appData.unreadAlertsCount}
       onAddEmployee={() => setIsEmployeeFormOpen(true)}
       onAddCompany={() => setIsCompanyFormOpen(true)}
       onAddDocument={appData.handleAddDocClick}
+      isHideNav={isFormOrOverlayActive}
     >
       {renderView()}
 
@@ -50,7 +63,7 @@ export default function MobileApp() {
           appData.setIsDetailsOpen(true);
         }}
         onSelectCompany={() => {
-          appData.setActiveView('companies');
+          handleTabChange('companies');
         }}
       />
 
@@ -76,3 +89,4 @@ export default function MobileApp() {
     </MobileLayout>
   );
 }
+
