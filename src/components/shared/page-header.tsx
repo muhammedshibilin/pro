@@ -96,7 +96,7 @@ export function PageHeader({
               )}
             >
               {ActionIcon && <ActionIcon className="h-4 w-4 shrink-0" />}
-              {action.label && <span className="hidden xs:inline">{action.label}</span>}
+              {action.label && <span className="inline">{action.label}</span>}
             </Button>
           );
         })}

@@ -94,11 +94,12 @@ export default function MobileEmployeeDetail({ employee, onBack }: MobileEmploye
 
   return (
     <div className="fixed inset-0 z-[100] bg-background flex flex-col w-full max-w-full overflow-hidden animate-in slide-in-from-right">
-      {/* Top App Bar with Top-Right Icon-Only Actions */}
+      {/* Top App Bar with Top-Right Actions */}
       <PageHeader
         title="Employee Profile"
         onBack={onBack}
         primaryAction={{
+          label: "Edit",
           icon: Edit2,
           title: "Edit Employee Details",
           onClick: () => setIsEditOpen(true),
@@ -106,6 +107,7 @@ export default function MobileEmployeeDetail({ employee, onBack }: MobileEmploye
         }}
         secondaryActions={[
           {
+            label: "Delete",
             icon: Trash2,
             title: "Delete Employee",
             variant: "destructive",

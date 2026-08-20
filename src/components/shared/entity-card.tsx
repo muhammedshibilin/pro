@@ -105,6 +105,43 @@ export function EntityCard({
 
       {/* Footer Section */}
       {footer}
+
+      {/* Prominent Action Bar for Mobile Touchscreens */}
+      {(onEdit || onDelete) && (
+        <div className="flex items-center gap-2 pt-2 border-t border-border/40 shrink-0">
+          {onEdit && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="flex-1 h-10 text-xs font-bold gap-1.5 rounded-xl border-primary/30 text-primary hover:bg-primary/10 active:scale-95"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+            >
+              <Edit3 className="w-4 h-4 shrink-0" />
+              <span>Edit</span>
+            </Button>
+          )}
+
+          {onDelete && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="flex-1 h-10 text-xs font-bold gap-1.5 rounded-xl border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 active:scale-95"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+            >
+              <Trash2 className="w-4 h-4 shrink-0" />
+              <span>Delete</span>
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

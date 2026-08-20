@@ -77,11 +77,12 @@ export default function MobileCompanyDetail({ company, onBack }: MobileCompanyDe
 
   return (
     <div className="fixed inset-0 z-[100] bg-background flex flex-col w-full max-w-full overflow-hidden animate-in slide-in-from-right">
-      {/* Top App Bar with Top-Right Icon-Only Actions */}
+      {/* Top App Bar with Top-Right Actions */}
       <PageHeader
         title="Company Details"
         onBack={onBack}
         primaryAction={{
+          label: "Edit",
           icon: Edit2,
           title: "Edit Company Details",
           onClick: () => setIsEditOpen(true),
@@ -89,6 +90,7 @@ export default function MobileCompanyDetail({ company, onBack }: MobileCompanyDe
         }}
         secondaryActions={[
           {
+            label: "Delete",
             icon: Trash2,
             title: "Delete Company",
             variant: "destructive",
