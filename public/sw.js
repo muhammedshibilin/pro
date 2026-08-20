@@ -1,4 +1,4 @@
-const CACHE_NAME = 'doc-expiry-tracker-v2';
+const CACHE_NAME = 'doc-expiry-tracker-v3';
 const ASSETS_TO_CACHE = [
   '/',
   '/manifest.json',
@@ -18,7 +18,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate Service Worker
+// Activate Service Worker & Clear Old Caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
@@ -62,33 +62,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Handle HTML Page Navigations (Network-First strategy to ensure fresh content)
-  if (request.mode === 'navigate' || request.headers.get('accept')?.includes('text/html')) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response.status === 200) {
-            const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, copy);
-            });
-          }
-          return response;
-        })
-        .catch(() => {
-          return caches.match(request);
-        })
-    );
-    return;
-  }
-
-  // Handle Static Assets (Cache-First strategy)
+  // Handle HTML Page Navigations & Static JS/CSS Assets (Network-First strategy to ensure fresh app code)
   event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(request).then((response) => {
+    fetch(request)
+      .then((response) => {
         if (response.status === 200) {
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
@@ -96,7 +73,9 @@ self.addEventListener('fetch', (event) => {
           });
         }
         return response;
-      });
-    })
+      })
+      .catch(() => {
+        return caches.match(request);
+      })
   );
 });
